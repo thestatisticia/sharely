@@ -1,0 +1,16 @@
+{
+  "name": "SHARELY — Rent with GoodDollar",
+  "short_name": "SHARELY",
+  "description": "Neighbor rentals paid with G$ on Celo — Kampala",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

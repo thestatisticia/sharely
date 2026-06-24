@@ -1,0 +1,8 @@
+[profile.default]
+src = "contracts"
+out = "artifacts"
+libs = ["lib"]
+solc_version = "0.8.20"
+
+[rpc_endpoints]
+celo = "https://forno.celo.org"
