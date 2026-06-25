@@ -75,7 +75,7 @@ export function EarningsCard({
 
       {!loading && stats.activeRentals === 0 && stats.completedRentals === 0 ? (
         <p className="text-center text-sm text-muted">
-          List gear on{" "}
+          List items on{" "}
           <Link href="/list" className="font-semibold text-primary">
             Rent out
           </Link>{" "}

@@ -34,7 +34,7 @@ export default function HomePage() {
         <Link href="/list">
           <Button size="lg" variant="secondary">
             <TrendingUp className="h-4 w-4" />
-            Rent out gear
+            Rent out items
           </Button>
         </Link>
       </PageHero>

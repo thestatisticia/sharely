@@ -69,7 +69,7 @@ export function BrowseGrid({
         <Surface className="p-10 text-center" elevated>
           <p className="font-semibold text-foreground">No rentals found</p>
           <p className="mt-2 text-muted">
-            Try another area or rent out your own gear to earn G$.
+            Try another area or rent out your own items to earn G$.
           </p>
         </Surface>
       ) : (

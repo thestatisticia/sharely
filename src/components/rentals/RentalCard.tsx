@@ -94,11 +94,15 @@ export function RentalCard({
     [rental, chain.streamActive, chain.depositReleased],
   );
 
-  const awaitingPickup =
+  const awaitingStreamStart =
     Boolean(rental.bookingId) &&
     !rental.flowTxHash &&
+    !rental.streamStartedAt &&
     !chain.streamActive &&
     !chain.depositReleased;
+
+  const canRenterStartStream =
+    awaitingStreamStart && Boolean(rental.ownerHandoverAt);
 
   useEffect(() => {
     if (chain.isComplete && rental.status !== "completed") {
@@ -107,7 +111,11 @@ export function RentalCard({
         { status: "completed" },
         { listingId: rental.listingId, relistOnComplete: true },
       ).then(onUpdated);
-    } else if (chain.streamActive && rental.status === "pending") {
+    } else if (
+      chain.streamActive &&
+      rental.status === "pending" &&
+      rental.flowTxHash
+    ) {
       void patchRental(rental.id, { status: "active" }).then(onUpdated);
     }
   }, [
@@ -264,7 +272,9 @@ export function RentalCard({
     chain.isComplete || rental.status === "completed"
       ? "completed"
       : progress.phase === "pending"
-        ? "awaiting pickup"
+        ? rental.ownerHandoverAt
+          ? "ready to start"
+          : "awaiting pickup"
         : chain.streamActive
           ? "streaming"
           : rental.status;
@@ -304,7 +314,7 @@ export function RentalCard({
               ? "…"
               : chain.streamActive
                 ? "active"
-                : awaitingPickup
+                : awaitingStreamStart
                   ? "not started"
                   : "stopped"}
           </span>
@@ -335,7 +345,7 @@ export function RentalCard({
         </div>
       ) : null}
 
-      {isOwner && awaitingPickup && !chain.streamActive ? (
+      {isOwner && awaitingStreamStart && !chain.streamActive ? (
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
           <p className="inline-flex items-center gap-1.5 font-semibold">
             <Package className="h-4 w-4" />
@@ -367,13 +377,22 @@ export function RentalCard({
         </div>
       ) : null}
 
-      {isRenter && rental.ownerHandoverAt && awaitingPickup ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900">
-          <p className="font-semibold">Owner confirms delivery</p>
+      {isRenter && awaitingStreamStart && !rental.ownerHandoverAt ? (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
+          <p className="font-semibold">Waiting for owner delivery</p>
           <p className="mt-1 text-xs">
-            Start the rental stream now. Your deposit is locked until the rental
-            ends — the owner is protected, but you must begin payments to stay in
-            good standing.
+            Your deposit is locked. The owner must confirm they handed over the
+            item before you can start the payment stream.
+          </p>
+        </div>
+      ) : null}
+
+      {isRenter && canRenterStartStream ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900">
+          <p className="font-semibold">Owner confirmed delivery</p>
+          <p className="mt-1 text-xs">
+            Start the rental stream now. Your deposit stays locked until the
+            rental ends — payments stream to the owner in real time.
           </p>
         </div>
       ) : null}
@@ -384,10 +403,10 @@ export function RentalCard({
         </p>
       ) : null}
 
-      {isRenter && awaitingPickup && !chain.streamActive && chain.hasEscrow ? (
+      {isRenter && canRenterStartStream && chain.hasEscrow ? (
         <div className="space-y-2">
           <p className="text-sm text-muted">
-            Received the item from the owner? Start the rental payment stream.
+            Received the item? Start the rental payment stream.
           </p>
           <Button
             fullWidth
@@ -403,7 +422,7 @@ export function RentalCard({
         </div>
       ) : null}
 
-      {isOwner && !chain.depositReleased && chain.hasEscrow && !awaitingPickup ? (
+      {isOwner && !chain.depositReleased && chain.hasEscrow && !awaitingStreamStart ? (
         <div className="space-y-2">
           <p className="text-sm text-muted">
             Item returned? Confirm to release the renter&apos;s security deposit.

@@ -57,8 +57,13 @@ export function useRentalOnChain(rental: Rental) {
   const depositReleased = deposit?.[5] ?? false;
   const claimableAfterSec = deposit?.[4] ? Number(deposit[4]) : undefined;
   const flowRate = flowInfo?.[1] as bigint | undefined;
-  const streamActive =
+  const onChainFlowActive =
     flowRate !== undefined && flowRate > BigInt(0);
+  /** Only count a stream for this rental after pickup was confirmed in-app. */
+  const streamStartedForRental = Boolean(
+    rental.flowTxHash || rental.streamStartedAt,
+  );
+  const streamActive = onChainFlowActive && streamStartedForRental;
 
   const canClaimDeposit =
     hasEscrow &&
@@ -79,6 +84,7 @@ export function useRentalOnChain(rental: Rental) {
     depositLoading,
     flowLoading,
     depositReleased,
+    onChainFlowActive,
     streamActive,
     canClaimDeposit,
     claimableAfterDate,

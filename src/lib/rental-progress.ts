@@ -16,25 +16,15 @@ export function getRentalProgress(
 ): RentalProgress {
   const totalRentalG$ = rental.dailyRateG$ * rental.days;
   const daysTotal = rental.days;
+  const streamStarted = Boolean(rental.streamStartedAt || rental.flowTxHash);
 
-  if (rental.status === "pending" && !rental.flowTxHash && !streamActive) {
+  if (!streamStarted) {
     return {
       phase: "pending",
       progress: 0,
       earnedG$: 0,
       totalRentalG$: totalRentalG$,
       daysElapsed: 0,
-      daysTotal,
-    };
-  }
-
-  if (depositReleased && !streamActive) {
-    return {
-      phase: "complete",
-      progress: 1,
-      earnedG$: totalRentalG$,
-      totalRentalG$: totalRentalG$,
-      daysElapsed: daysTotal,
       daysTotal,
     };
   }
@@ -48,11 +38,34 @@ export function getRentalProgress(
   const elapsed = Math.min(Math.max(now - startMs, 0), span);
   const progress = elapsed / span;
   const daysElapsed = elapsed / 86_400_000;
+  const earnedG$ = rental.dailyRateG$ * daysElapsed;
+
+  if (depositReleased && !streamActive) {
+    return {
+      phase: "complete",
+      progress: 1,
+      earnedG$: totalRentalG$,
+      totalRentalG$: totalRentalG$,
+      daysElapsed: daysTotal,
+      daysTotal,
+    };
+  }
+
+  if (!streamActive) {
+    return {
+      phase: "stopped",
+      progress,
+      earnedG$,
+      totalRentalG$: totalRentalG$,
+      daysElapsed,
+      daysTotal,
+    };
+  }
 
   return {
-    phase: streamActive ? "streaming" : "stopped",
+    phase: "streaming",
     progress,
-    earnedG$: rental.dailyRateG$ * daysElapsed,
+    earnedG$,
     totalRentalG$: totalRentalG$,
     daysElapsed,
     daysTotal,

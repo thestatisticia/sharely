@@ -53,8 +53,9 @@ export default function RentalsPage() {
           <em>Renting out</em>. Earnings stream to your G$ wallet — no claim needed.
         </p>
         <p className="mt-2">
-          <strong className="text-foreground">Renters:</strong> confirm pickup to
-          start payments, then stop the stream when done.
+          <strong className="text-foreground">Renters:</strong> after the owner
+          confirms delivery, start the payment stream — then stop it when you are
+          done.
         </p>
       </Surface>
 

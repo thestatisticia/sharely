@@ -157,9 +157,9 @@ export function RentPanel({ listing }: { listing: Listing }) {
       });
       await wait(lockHash);
 
-      const start = new Date();
-      const end = new Date();
-      end.setDate(end.getDate() + days);
+      const bookedAt = new Date();
+      const estimatedEnd = new Date(bookedAt);
+      estimatedEnd.setDate(estimatedEnd.getDate() + days);
 
       await createRental({
         id: createId("rental"),
@@ -174,9 +174,10 @@ export function RentPanel({ listing }: { listing: Listing }) {
         status: "pending",
         bookingId,
         escrowTxHash: lockHash,
-        createdAt: new Date().toISOString(),
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
+        createdAt: bookedAt.toISOString(),
+        // Booked-at / estimated return — real stream dates set at pickup
+        startDate: bookedAt.toISOString(),
+        endDate: estimatedEnd.toISOString(),
       });
 
       await refetchBalance();
@@ -192,10 +193,11 @@ export function RentPanel({ listing }: { listing: Listing }) {
       <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
         <p className="font-bold text-emerald-900">Booking confirmed!</p>
         <p className="mt-1 text-sm text-emerald-800">
-          Your security deposit is locked in escrow. Meet the owner, pick up the
-          item, then go to <strong>My rentals</strong> and tap{" "}
-          <strong>I received the item</strong> to start the G$ payment stream.
-          The owner earns automatically once the stream is live.
+          Your security deposit is locked in escrow — no payment stream yet. Meet
+          the owner for pickup. After they tap <strong>I&apos;ve delivered the
+          item</strong>, go to <strong>My rentals</strong> and tap{" "}
+          <strong>I received the item — start rental</strong> to begin G$
+          payments.
         </p>
         {txHashes.length > 0 ? (
           <ul className="mt-3 space-y-1 text-xs text-emerald-900">
@@ -297,7 +299,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
           <li className={step === "locking" ? "font-semibold text-primary" : ""}>
             2. Lock security deposit
           </li>
-          <li>3. Pick up item → start payment stream in My rentals</li>
+          <li>3. Owner confirms delivery → you start stream in My rentals</li>
         </ol>
 
         {!hasEscrow ? (

@@ -147,7 +147,7 @@ export default function ListPage() {
   return (
     <Page className="gap-8">
       <PageHero
-        title="Rent out your gear"
+        title="Rent out your items"
         description="Turn unused items into income. Set your daily rate and security deposit — renters pay in G$ with escrow protection."
       >
         <VerificationBadge size="lg" />
@@ -158,7 +158,7 @@ export default function ListPage() {
           <div>
             <p className="font-semibold">Connect wallet to publish</p>
             <p className="mt-1 text-sm text-muted">
-              Owners earn G$ when verified renters book their gear.
+              Owners earn G$ when verified renters book their items.
             </p>
           </div>
           <ConnectButton />
