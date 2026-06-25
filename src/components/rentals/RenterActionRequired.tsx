@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useSignMessage, useWriteContract } from "wagmi";
 import { AlertTriangle, Loader2, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import {
 } from "@/lib/contracts";
 import { formatG$ } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
+import { buildStreamStartSignMessage } from "@/lib/rental-sign";
 import { dailyRateToFlowRate } from "@/lib/superfluid";
 import type { Rental } from "@/lib/types";
 
@@ -26,6 +27,7 @@ export function RenterActionRequired({
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const { signMessageAsync } = useSignMessage();
   const chain = useRentalOnChain(rental);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,11 @@ export function RenterActionRequired({
     setBusy(true);
     setError(null);
     try {
+      const attestAt = new Date().toISOString();
+      await signMessageAsync({
+        message: buildStreamStartSignMessage(rental, attestAt),
+      });
+
       const flowRate = dailyRateToFlowRate(dailyRate);
       const hash = await writeContractAsync({
         address: CFA_FORWARDER_ADDRESS,
@@ -70,7 +77,12 @@ export function RenterActionRequired({
       await chain.refetch();
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start stream");
+      const message = err instanceof Error ? err.message : "Could not start stream";
+      if (message.toLowerCase().includes("reject")) {
+        setError("Cancelled in MetaMask. Approve the signature, then the stream transaction.");
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -111,7 +123,7 @@ export function RenterActionRequired({
       >
         {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
         <Package className="h-5 w-5" />
-        I received the item — start rental
+        {busy ? "Confirm in MetaMask…" : "I received the item — start rental"}
       </Button>
 
       {error ? (

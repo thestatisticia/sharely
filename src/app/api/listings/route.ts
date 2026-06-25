@@ -16,7 +16,11 @@ export async function GET() {
 
   try {
     const listings = await fetchPublishedListings({ availableOnly: true });
-    return NextResponse.json(listings);
+    return NextResponse.json(listings, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Server error" },

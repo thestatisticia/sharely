@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useSignMessage, useWriteContract } from "wagmi";
 import {
   CheckCircle2,
   Clock,
@@ -26,6 +26,10 @@ import {
 import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
+import {
+  buildHandoverSignMessage,
+  buildStreamStartSignMessage,
+} from "@/lib/rental-sign";
 import { dailyRateToFlowRate } from "@/lib/superfluid";
 import type { Rental } from "@/lib/types";
 
@@ -71,6 +75,7 @@ export function RentalCard({
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const { signMessageAsync } = useSignMessage();
   const chain = useRentalOnChain(rental);
 
   const [action, setAction] = useState<Action>(null);
@@ -128,14 +133,23 @@ export function RentalCard({
   ]);
 
   async function handleConfirmHandover() {
+    if (!address) return;
     setAction("handover");
     setError(null);
     try {
       const now = new Date().toISOString();
+      await signMessageAsync({
+        message: buildHandoverSignMessage(rental, now),
+      });
       await patchRental(rental.id, { ownerHandoverAt: now });
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not record handover");
+      const message = err instanceof Error ? err.message : "Could not record handover";
+      if (message.toLowerCase().includes("reject")) {
+        setError("Signature cancelled. Approve in MetaMask to confirm delivery.");
+      } else {
+        setError(message);
+      }
     } finally {
       setAction(null);
     }
@@ -152,6 +166,11 @@ export function RentalCard({
     setAction("start");
     setError(null);
     try {
+      const now = new Date().toISOString();
+      await signMessageAsync({
+        message: buildStreamStartSignMessage(rental, now),
+      });
+
       const flowRate = dailyRateToFlowRate(dailyRate);
       const hash = await writeContractAsync({
         address: CFA_FORWARDER_ADDRESS,
@@ -167,22 +186,27 @@ export function RentalCard({
       });
       await waitTx(hash);
 
-      const now = new Date();
-      const end = new Date(now);
+      const started = new Date();
+      const end = new Date(started);
       end.setDate(end.getDate() + rental.days);
 
       await patchRental(rental.id, {
         status: "active",
         flowTxHash: hash,
         txHash: hash,
-        streamStartedAt: now.toISOString(),
-        startDate: now.toISOString(),
+        streamStartedAt: started.toISOString(),
+        startDate: started.toISOString(),
         endDate: end.toISOString(),
       });
       await chain.refetch();
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start stream");
+      const message = err instanceof Error ? err.message : "Could not start stream";
+      if (message.toLowerCase().includes("reject")) {
+        setError("Transaction cancelled. Approve both steps in MetaMask to start the stream.");
+      } else {
+        setError(message);
+      }
     } finally {
       setAction(null);
     }
@@ -352,9 +376,8 @@ export function RentalCard({
             New booking — deposit locked
           </p>
           <p className="mt-1 text-xs">
-            Hand over the item, then tap below. The renter must start the G$
-            stream from their wallet — you cannot start it for them. Do not
-            confirm return until rental payments have streamed.
+            Hand over the item, then sign in MetaMask to confirm delivery. The
+            renter must then start the G$ stream from their wallet.
           </p>
           {!rental.ownerHandoverAt ? (
             <Button
@@ -364,10 +387,14 @@ export function RentalCard({
               onClick={() => void handleConfirmHandover()}
               disabled={busy}
             >
-              {action === "handover" && (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {action === "handover" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Confirm in MetaMask…
+                </>
+              ) : (
+                "I've delivered the item"
               )}
-              I&apos;ve delivered the item
             </Button>
           ) : (
             <p className="mt-2 text-xs font-medium">
@@ -406,18 +433,25 @@ export function RentalCard({
       {isRenter && canRenterStartStream && chain.hasEscrow ? (
         <div className="space-y-2">
           <p className="text-sm text-muted">
-            Received the item? Start the rental payment stream.
+            Received the item? MetaMask will ask you to sign, then approve the
+            payment stream.
           </p>
           <Button
             fullWidth
             onClick={() => void handleStartStream()}
             disabled={busy}
           >
-            {action === "start" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
+            {action === "start" ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Confirm in MetaMask…
+              </>
+            ) : (
+              <>
+                <Package className="h-4 w-4" />
+                I received the item — start rental
+              </>
             )}
-            <Package className="h-4 w-4" />
-            I received the item — start rental
           </Button>
         </div>
       ) : null}

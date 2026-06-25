@@ -26,6 +26,16 @@ If owners see **Could not update rental on server** when confirming delivery:
 2. Paste the contents of [`rentals-migration-handover.sql`](./rentals-migration-handover.sql)
 3. Click **Run**
 
+## 1d. Remove demo listings (if drills/tents still appear)
+
+Demo items may still live **in your database** even after a code deploy.
+
+1. Open **SQL Editor** → **New query**
+2. Paste [`cleanup-demo-listings.sql`](./cleanup-demo-listings.sql)
+3. Click **Run**
+
+Then hard-refresh the site (Ctrl+Shift+R). In Vercel, confirm the latest deploy is from commit `db5f26a` or newer.
+
 ## 2. Copy API credentials
 
 **Project Settings → API**
