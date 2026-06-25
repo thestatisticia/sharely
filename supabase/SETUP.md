@@ -51,11 +51,14 @@ Restart the dev server after saving.
 
 Listings will sync for all users once Supabase env vars are set on the host.
 
-## 5. Optional — image uploads
+## 5. Listing photo uploads (recommended)
 
-**Storage → New bucket** → name: `listing-images` → **Public**
+1. Open **SQL Editor** → paste [`listing-images-storage.sql`](./listing-images-storage.sql) → **Run**
+2. Confirm **Storage** shows a public bucket named `listing-images`
 
-Upload photos in the dashboard or via API, then paste the public URL when listing an item.
+On **Rent out**, owners can **Choose photo** or **Take photo** — images upload to Supabase and appear reliably on Explore.
+
+The link paste option remains as a fallback but uploads are preferred.
 
 ## 6. Verify it works
 
@@ -71,3 +74,4 @@ Upload photos in the dashboard or via API, then paste the public URL when listin
 | `Supabase not configured` | Add `SUPABASE_SERVICE_ROLE_KEY` to hosting env |
 | RLS errors | Re-run `schema.sql` policies |
 | 500 on POST | Check Vercel function logs / Supabase logs |
+| Photo upload fails | Run `listing-images-storage.sql`; confirm `SUPABASE_SERVICE_ROLE_KEY` on server |

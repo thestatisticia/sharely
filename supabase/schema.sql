@@ -38,5 +38,4 @@ create policy "listings_update_public"
   on public.listings for update
   using (true);
 
--- Optional: Storage bucket for photos (Dashboard → Storage → New bucket: listing-images, public)
--- Then use Supabase Storage URLs instead of Google Drive links.
+-- Optional: run listing-images-storage.sql for in-app photo uploads (recommended)

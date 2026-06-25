@@ -44,7 +44,11 @@ export function normalizeImageUrl(input: string): string {
 export function isOptimizableImageUrl(input: string): boolean {
   try {
     const url = new URL(normalizeImageUrl(input));
-    return OPTIMIZED_IMAGE_HOSTS.has(url.hostname);
+    if (OPTIMIZED_IMAGE_HOSTS.has(url.hostname)) return true;
+    return (
+      url.hostname.endsWith(".supabase.co") &&
+      url.pathname.includes("/storage/v1/object/public/")
+    );
   } catch {
     return false;
   }

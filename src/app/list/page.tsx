@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useSignMessage } from "wagmi";
 
+import { ListingPhotoField } from "@/components/listings/ListingPhotoField";
 import { ListingImage } from "@/components/items/ListingImage";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea } from "@/components/ui/Field";
@@ -15,7 +16,6 @@ import { useVerificationState } from "@/hooks/useGoodDollar";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import {
   hasRenderableImage,
-  imageUrlHint,
   normalizeImageUrl,
 } from "@/lib/imageUrl";
 import { KAMPALA_AREAS, formatKampalaLocation } from "@/lib/kampala";
@@ -45,17 +45,11 @@ export default function ListPage() {
   const [publishing, setPublishing] = useState(false);
   const [previewCategory, setPreviewCategory] = useState<ItemCategory>("tools");
   const [preview, setPreview] = useState(LISTING_PHOTOS.drill);
-  const [imageHint, setImageHint] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [dailyRate, setDailyRate] = useState("");
   const [deposit, setDeposit] = useState("");
 
   const depositTiers = recommendedDeposits(Number(dailyRate) || 0);
-
-  function handleImageUrlChange(raw: string) {
-    const normalized = normalizeImageUrl(raw) || CATEGORY_IMAGES[previewCategory];
-    setPreview(normalized);
-    setImageHint(imageUrlHint(raw));
-  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,7 +79,9 @@ export default function ListPage() {
     const dailyRateG$ = Number(form.get("dailyRate"));
     const depositG$ = Number(form.get("deposit"));
     const imageUrl = normalizeImageUrl(
-      String(form.get("imageUrl") || preview).trim(),
+      uploadedUrl ||
+        String(form.get("imageUrl") || "").trim() ||
+        preview,
     );
 
     if (!title || !description || !area) {
@@ -106,7 +102,7 @@ export default function ListPage() {
     }
 
     if (!hasRenderableImage(imageUrl)) {
-      setError("Add a valid image URL. Listings without images are not published.");
+      setError("Add a photo or valid image link before publishing.");
       return;
     }
 
@@ -170,36 +166,16 @@ export default function ListPage() {
       ) : null}
 
       <form onSubmit={onSubmit} className="surface space-y-5 p-5 sm:p-6">
-          <div className="relative">
-            <ListingImage
-              src={preview}
-              alt="Listing preview"
-              category={previewCategory}
-              aspect="wide"
-              rounded="2xl"
-              sizes="400px"
-            />
-            <div className="absolute bottom-3 right-3 z-10 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold shadow">
-              <ImagePlus className="mr-1 inline h-3.5 w-3.5" />
-              Preview
-            </div>
-          </div>
-
-          <div>
-            <Label>Upload photos</Label>
-            <Input
-              name="imageUrl"
-              placeholder="Paste image link or Google Drive share URL"
-              onChange={(e) => handleImageUrlChange(e.target.value)}
-            />
-            <p className="mt-1.5 text-xs text-muted">
-              Google Drive: paste the share link — we convert it automatically.
-              File must be shared as &quot;Anyone with the link&quot; and not restricted.
-            </p>
-            {imageHint ? (
-              <p className="mt-1 text-xs font-medium text-primary">{imageHint}</p>
-            ) : null}
-          </div>
+          <ListingPhotoField
+            preview={preview}
+            category={previewCategory}
+            uploadedUrl={uploadedUrl}
+            onPreviewChange={setPreview}
+            onUploadedUrlChange={setUploadedUrl}
+            onError={setError}
+            ownerAddress={address}
+            onConnectWallet={openModal}
+          />
 
           <div>
             <Label>What are you renting?</Label>
@@ -223,7 +199,9 @@ export default function ListPage() {
               onChange={(e) => {
                 const cat = e.target.value as ItemCategory;
                 setPreviewCategory(cat);
-                setPreview(CATEGORY_IMAGES[cat]);
+                if (!uploadedUrl) {
+                  setPreview(CATEGORY_IMAGES[cat]);
+                }
               }}
             >
               {CATEGORIES.map((cat) => (
