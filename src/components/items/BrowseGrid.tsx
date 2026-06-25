@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAccount } from "wagmi";
 
 import { useClientListings } from "@/hooks/useClientListing";
 import { matchesAreaFilter } from "@/components/kampala/KampalaHeatmap";
@@ -8,6 +9,7 @@ import { ItemCard } from "@/components/items/ItemCard";
 import { Surface } from "@/components/layout/Page";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import type { ItemCategory } from "@/lib/types";
+import { hasRenderableImage } from "@/lib/imageUrl";
 import { cn } from "@/lib/utils";
 
 export function BrowseGrid({
@@ -19,6 +21,7 @@ export function BrowseGrid({
 }) {
   const [category, setCategory] = useState<ItemCategory | "all">("all");
   const { listings, loading } = useClientListings();
+  const { address } = useAccount();
 
   const filtered = listings.filter((listing) => {
     const matchesCategory =
@@ -30,7 +33,16 @@ export function BrowseGrid({
       listing.location.toLowerCase().includes(q) ||
       listing.description.toLowerCase().includes(q);
     const matchesArea = area ? matchesAreaFilter(listing, area) : true;
-    return matchesCategory && matchesQuery && matchesArea && listing.available;
+    const isOwner =
+      Boolean(address) &&
+      listing.ownerAddress.toLowerCase() === address?.toLowerCase();
+    return (
+      matchesCategory &&
+      matchesQuery &&
+      matchesArea &&
+      hasRenderableImage(listing.imageUrl) &&
+      (listing.available || isOwner)
+    );
   });
 
   return (
@@ -60,8 +72,10 @@ export function BrowseGrid({
         </div>
       ) : filtered.length === 0 ? (
         <Surface className="p-10 text-center" elevated>
-          <p className="font-semibold text-foreground">No items found</p>
-          <p className="mt-2 text-muted">Try another filter or list your first item.</p>
+          <p className="font-semibold text-foreground">No rentals found</p>
+          <p className="mt-2 text-muted">
+            Try another area or rent out your own gear to earn G$.
+          </p>
         </Surface>
       ) : (
         <div className="grid gap-4">

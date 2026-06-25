@@ -4,6 +4,7 @@ const OPTIMIZED_IMAGE_HOSTS = new Set([
   "fastly.picsum.photos",
   "drive.google.com",
   "lh3.googleusercontent.com",
+  "docs.google.com",
 ]);
 
 /** Extract Google Drive file id from share / open links */
@@ -27,10 +28,7 @@ export function normalizeImageUrl(input: string): string {
   try {
     const url = new URL(trimmed);
 
-    if (
-      url.hostname === "drive.google.com" ||
-      url.hostname === "docs.google.com"
-    ) {
+    if (url.hostname === "drive.google.com" || url.hostname === "docs.google.com") {
       const fileId = googleDriveFileId(url);
       if (fileId) {
         return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`;
@@ -57,8 +55,25 @@ export function imageUrlHint(input: string): string | null {
   if (input.includes("drive.google.com/file/") && normalized !== input.trim()) {
     return "Google Drive link converted to a direct image URL.";
   }
+  if (input.includes("google.com/url?")) {
+    return "Google redirect links usually fail. Paste the original image URL directly.";
+  }
   if (input.includes("drive.google.com") && !isOptimizableImageUrl(normalized)) {
     return "Make sure the Drive file is shared as “Anyone with the link”.";
   }
+  if (input.includes("docs.google.com")) {
+    return "Docs links work only when the image file itself is publicly accessible.";
+  }
   return null;
+}
+
+export function hasRenderableImage(input: string | null | undefined): boolean {
+  const normalized = normalizeImageUrl(input ?? "").trim();
+  if (!normalized) return false;
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }

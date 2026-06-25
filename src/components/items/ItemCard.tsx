@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { CheckCircle2, MapPin, Star } from "lucide-react";
 
 import { ListingImage } from "@/components/items/ListingImage";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { formatDistance, formatG$ } from "@/lib/format";
+import { getOwnerProfile } from "@/lib/owner-profile";
 import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +17,9 @@ export function ItemCard({
   className?: string;
   elevated?: boolean;
 }) {
+  const owner = getOwnerProfile(listing.ownerAddress, listing.ownerName);
+  const area = listing.area ?? listing.location.split(",")[0]?.trim();
+
   return (
     <Link
       href={`/item/${listing.id}`}
@@ -35,25 +40,49 @@ export function ItemCard({
           imageClassName="transition duration-700 group-hover:scale-[1.04]"
           showGradient
         />
-        <div className="absolute bottom-3 left-3">
-          <span className="price-chip text-sm text-foreground">
-            {formatG$(listing.dailyRateG$)}
-            <span className="text-xs font-medium text-muted">G$/day</span>
-          </span>
-        </div>
-        <div className="absolute right-3 top-3">
-          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
+        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+          <span className="rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm">
             {CATEGORY_LABELS[listing.category]}
           </span>
+          {listing.available ? (
+            <span className="rounded-full bg-emerald-500/90 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+              Available today
+            </span>
+          ) : null}
         </div>
       </div>
-      <div className="space-y-1.5 p-4 sm:p-5">
-        <h3 className="text-lg font-bold leading-snug text-foreground">
-          {listing.title}
-        </h3>
-        <p className="text-sm text-muted">
-          {listing.location} · {formatDistance(listing.distanceKm)}
+
+      <div className="space-y-3 p-4 sm:p-5">
+        <div>
+          <h3 className="text-lg font-bold leading-snug text-foreground">
+            {listing.title}
+          </h3>
+          <p className="mt-1 inline-flex items-center gap-1 text-sm text-muted">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            {owner.rating} · {owner.displayName}
+          </p>
+        </div>
+
+        <p className="inline-flex items-center gap-1.5 text-sm text-muted">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-accent" />
+          {area} · {formatDistance(listing.distanceKm)} away
         </p>
+
+        <div className="flex items-end justify-between gap-3 border-t border-border/60 pt-3">
+          <div>
+            <p className="text-xl font-bold text-foreground">
+              {formatG$(listing.dailyRateG$)} G$
+              <span className="text-sm font-semibold text-muted">/day</span>
+            </p>
+            <p className="text-sm font-medium text-muted">
+              Deposit {formatG$(listing.depositG$)} G$
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Verified owner
+          </span>
+        </div>
       </div>
     </Link>
   );

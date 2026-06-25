@@ -35,7 +35,7 @@ export default function RentalsPage() {
       <Page className="gap-8">
         <PageHero
           title="My rentals"
-          description="Connect your wallet to manage rentals and lending."
+          description="Connect your wallet to manage active rentals and payouts."
         />
         <div className="surface p-8 text-center">
           <ConnectButton fullWidth />
@@ -48,7 +48,7 @@ export default function RentalsPage() {
     <Page className="gap-8">
       <PageHero
         title="My rentals"
-        description="Confirm returns, stop streams, and claim deposits on Celo."
+        description="Track rentals you booked and items you rent out — confirm returns, stop streams, and claim deposits."
       />
 
       {rentals.length === 0 ? (
@@ -58,13 +58,13 @@ export default function RentalsPage() {
           </div>
           <p className="mt-4 font-semibold">No rentals yet</p>
           <p className="mt-1 text-sm text-muted">
-            Browse items and pay with G$ to see activity here.
+            Explore rentals and pay with G$ to see activity here.
           </p>
           <Link
             href="/browse"
             className="mt-4 inline-block text-sm font-semibold text-primary"
           >
-            Browse items →
+            Explore rentals →
           </Link>
         </div>
       ) : (

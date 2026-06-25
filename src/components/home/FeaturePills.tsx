@@ -1,20 +1,20 @@
-import { MapPin, ShieldCheck, Waves } from "lucide-react";
+import { ShieldCheck, Star, Wallet } from "lucide-react";
 
 const features = [
   {
     icon: ShieldCheck,
-    title: "Verified citizens",
-    text: "GoodDollar Identity",
+    title: "Escrow deposits",
+    text: "Refundable security on every rental",
   },
   {
-    icon: Waves,
-    title: "Live G$ streams",
-    text: "Superfluid on Celo",
+    icon: Star,
+    title: "Verified owners",
+    text: "GoodDollar identity + reputation",
   },
   {
-    icon: MapPin,
-    title: "Kampala-first",
-    text: "Neighbor rentals",
+    icon: Wallet,
+    title: "Pay with G$",
+    text: "Daily rates streamed on Celo",
   },
 ] as const;
 

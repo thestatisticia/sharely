@@ -13,7 +13,11 @@ import { VerificationBadge } from "@/components/wallet/VerificationBadge";
 import { useWalletModal } from "@/components/wallet/WalletModal";
 import { useVerificationState } from "@/hooks/useGoodDollar";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
-import { imageUrlHint, normalizeImageUrl } from "@/lib/imageUrl";
+import {
+  hasRenderableImage,
+  imageUrlHint,
+  normalizeImageUrl,
+} from "@/lib/imageUrl";
 import { KAMPALA_AREAS, formatKampalaLocation } from "@/lib/kampala";
 import { buildListingSignMessage } from "@/lib/listing-sign";
 import { createListing } from "@/lib/listings-api";
@@ -54,7 +58,7 @@ export default function ListPage() {
 
     if (!isConnected || !address) {
       openModal();
-      setError("Connect your wallet in MetaMask to publish.");
+      setError("Connect your wallet to publish in seconds.");
       return;
     }
 
@@ -93,6 +97,11 @@ export default function ListPage() {
 
     if (!Number.isFinite(depositG$) || depositG$ < 0) {
       setError("Deposit must be 0 or more.");
+      return;
+    }
+
+    if (!hasRenderableImage(imageUrl)) {
+      setError("Add a valid image URL. Listings without images are not published.");
       return;
     }
 
@@ -137,8 +146,8 @@ export default function ListPage() {
   return (
     <Page className="gap-8">
       <PageHero
-        title="List an item"
-        description="Earn G$ renting tools and gear to verified neighbors in Kampala."
+        title="Rent out your gear"
+        description="Turn unused items into income. Set your daily rate and security deposit — renters pay in G$ with escrow protection."
       >
         <VerificationBadge size="lg" />
       </PageHero>
@@ -146,9 +155,9 @@ export default function ListPage() {
       {!isConnected ? (
         <Surface className="flex flex-col items-center gap-3 p-6 text-center sm:flex-row sm:justify-between sm:text-left">
           <div>
-            <p className="font-semibold">Wallet required to publish</p>
+            <p className="font-semibold">Connect wallet to publish</p>
             <p className="mt-1 text-sm text-muted">
-              Fill in the form below, then sign with MetaMask when you publish.
+              Owners earn G$ when verified renters book their gear.
             </p>
           </div>
           <ConnectButton />
@@ -172,7 +181,7 @@ export default function ListPage() {
           </div>
 
           <div>
-            <Label>Photo URL</Label>
+            <Label>Upload photos</Label>
             <Input
               name="imageUrl"
               placeholder="Paste image link or Google Drive share URL"
@@ -180,7 +189,7 @@ export default function ListPage() {
             />
             <p className="mt-1.5 text-xs text-muted">
               Google Drive: paste the share link — we convert it automatically.
-              File must be shared as &quot;Anyone with the link&quot;.
+              File must be shared as &quot;Anyone with the link&quot; and not restricted.
             </p>
             {imageHint ? (
               <p className="mt-1 text-xs font-medium text-primary">{imageHint}</p>
@@ -188,8 +197,8 @@ export default function ListPage() {
           </div>
 
           <div>
-            <Label>Title</Label>
-            <Input name="title" placeholder="Cordless drill kit" required />
+            <Label>What are you renting?</Label>
+            <Input name="title" placeholder="Sony woofer speaker" required />
           </div>
 
           <div>
@@ -233,7 +242,7 @@ export default function ListPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Daily rate (G$)</Label>
+              <Label>Daily rate (G$/day)</Label>
               <Input
                 name="dailyRate"
                 type="number"
@@ -244,7 +253,7 @@ export default function ListPage() {
               />
             </div>
             <div>
-              <Label>Deposit (G$)</Label>
+              <Label>Security deposit (G$)</Label>
               <Input
                 name="deposit"
                 type="number"
@@ -284,7 +293,7 @@ export default function ListPage() {
               : publishing
                 ? "Confirm in MetaMask…"
                 : isConnected && canParticipate
-                  ? "Sign & publish listing"
+                  ? "Publish listing"
                   : "Publish listing"}
           </Button>
         </form>

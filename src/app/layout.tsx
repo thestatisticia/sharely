@@ -14,7 +14,7 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "SHARELY — Rent with GoodDollar",
   description:
-    "Borrow tools and gear from verified neighbors in Kampala. Pay with G$ on Celo.",
+    "Rent tools and equipment from verified owners in Kampala. Daily G$ rates, escrow deposits, and on-chain payments on Celo.",
   applicationName: "SHARELY",
   manifest: "/manifest.webmanifest",
 };

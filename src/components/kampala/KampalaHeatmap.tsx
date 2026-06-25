@@ -24,9 +24,22 @@ export function KampalaHeatmap({
   const max = Math.max(1, ...Object.values(counts));
 
   return (
-    <Surface className="p-4" elevated>
+    <Surface className="p-4 sm:p-5" elevated>
+      <div className="mb-4 flex items-center justify-between rounded-2xl border border-border/70 bg-surface-hover/70 px-3 py-2.5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Neighborhood momentum
+          </p>
+          <p className="text-sm font-semibold text-foreground">
+            {Object.values(counts).reduce((sum, n) => sum + n, 0)} live listings
+          </p>
+        </div>
+        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
+          Kampala
+        </span>
+      </div>
       <div
-        className="grid gap-2"
+        className="grid gap-2.5"
         style={{
           gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
           gridTemplateRows: "repeat(3, minmax(3rem, auto))",
@@ -43,8 +56,9 @@ export function KampalaHeatmap({
               key={area}
               href={`${basePath}?area=${encodeURIComponent(area)}`}
               className={cn(
-                "flex min-h-[3rem] flex-col items-center justify-center rounded-xl px-1 py-2 text-center transition",
-                active && "ring-2 ring-accent ring-offset-2 ring-offset-surface",
+                "group flex min-h-[3.25rem] flex-col items-center justify-center rounded-2xl border border-border/50 px-1 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md",
+                active &&
+                  "border-accent/70 ring-2 ring-accent ring-offset-2 ring-offset-surface",
               )}
               style={{
                 gridRow: row + 1,
@@ -61,11 +75,11 @@ export function KampalaHeatmap({
               </span>
               <span
                 className={cn(
-                  "mt-0.5 text-[10px]",
+                  "mt-0.5 text-[10px] font-medium",
                   hot ? "opacity-90" : "text-muted",
                 )}
               >
-                {count === 0 ? "—" : `${count}`}
+                {count === 0 ? "No listings" : `${count} live`}
               </span>
             </Link>
           );
@@ -73,7 +87,7 @@ export function KampalaHeatmap({
       </div>
       <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-sm text-muted">
         <MapPin className="h-3.5 w-3.5" />
-        Tap a neighborhood to filter
+        Tap a neighborhood to focus high-intent listings
       </p>
     </Surface>
   );

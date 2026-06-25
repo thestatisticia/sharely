@@ -248,10 +248,17 @@ export function RentPanel({ listing }: { listing: Listing }) {
   const busy = step !== "idle" && step !== "error";
 
   return (
-    <VerificationGate action="rent this item">
+    <VerificationGate action="request this rental">
       <div className="surface-elevated space-y-4 p-5 sm:p-6">
+        <div className="space-y-1">
+          <p className="eyebrow">Rate</p>
+          <p className="text-2xl font-bold text-foreground">
+            {formatG$(listing.dailyRateG$)} G$/day
+          </p>
+        </div>
+
         <div>
-          <p className="text-sm font-semibold text-muted">Rental period</p>
+          <p className="text-sm font-semibold text-foreground">Rental period</p>
           <div className="mt-2 flex items-center gap-3">
             <input
               type="range"
@@ -262,32 +269,38 @@ export function RentPanel({ listing }: { listing: Listing }) {
               onChange={(e) => setDays(Number(e.target.value))}
               className="h-2 w-full accent-primary"
             />
-            <span className="w-16 text-right text-sm font-bold">{days} days</span>
+            <span className="w-20 text-right text-sm font-bold">{days} days</span>
           </div>
         </div>
 
-        <div className="space-y-2 rounded-2xl bg-surface-hover p-4 text-sm">
-          <div className="flex items-start justify-between gap-2">
+        <div className="space-y-3 rounded-2xl border border-border/60 bg-surface-hover p-4 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted">Total rental</span>
+            <span className="text-lg font-bold text-foreground">
+              {formatG$(rentalTotal)} G$
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2 border-t border-border/50 pt-3">
+            <span className="inline-flex items-center gap-1.5 text-muted">
+              <Shield className="h-4 w-4 text-primary" />
+              Security deposit
+            </span>
+            <span className="text-right font-semibold">
+              {formatG$(listing.depositG$)} G$
+              <span className="block text-xs font-medium text-muted">
+                Held in escrow · refunded on return
+              </span>
+            </span>
+          </div>
+          <div className="flex items-start justify-between gap-2 border-t border-border/50 pt-3">
             <span className="inline-flex items-center gap-1.5 text-muted">
               <Waves className="h-4 w-4 text-primary" />
-              Rental stream
+              Payment stream
             </span>
             <span className="text-right font-semibold">
               {flowRateLabel(listing.dailyRateG$)}
               <span className="block text-xs font-medium text-muted">
-                ~{formatG$(rentalTotal)} G$ over {days}d
-              </span>
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-muted">
-              <Shield className="h-4 w-4 text-primary" />
-              Escrow deposit
-            </span>
-            <span className="font-semibold">
-              {formatG$(listing.depositG$)} G$
-              <span className="block text-xs font-medium text-muted">
-                Refunded on return
+                Streams to owner while active
               </span>
             </span>
           </div>
@@ -334,7 +347,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
               : step === "locking"
                 ? "Locking deposit…"
                 : "Starting stream…"
-            : "Rent with escrow + stream"}
+            : "Request rental"}
         </Button>
       </div>
     </VerificationGate>

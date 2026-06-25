@@ -7,6 +7,7 @@ import {
   rowToListing,
 } from "@/lib/supabase/server";
 import { SEED_LISTINGS } from "@/lib/store";
+import { hasRenderableImage } from "@/lib/imageUrl";
 import type { Listing } from "@/lib/types";
 
 export async function GET() {
@@ -32,9 +33,11 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const remote = (data ?? []).map(rowToListing);
+    const remote = (data ?? []).map(rowToListing).filter((l) => hasRenderableImage(l.imageUrl));
     const remoteIds = new Set(remote.map((l) => l.id));
-    const seeds = SEED_LISTINGS.filter((l) => !remoteIds.has(l.id));
+    const seeds = SEED_LISTINGS.filter(
+      (l) => !remoteIds.has(l.id) && hasRenderableImage(l.imageUrl),
+    );
 
     return NextResponse.json([...remote, ...seeds]);
   } catch (err) {
@@ -55,6 +58,12 @@ export async function POST(request: Request) {
 
   try {
     const listing = (await request.json()) as Listing;
+    if (!hasRenderableImage(listing.imageUrl)) {
+      return NextResponse.json(
+        { error: "Listing image URL is required and must be a valid link." },
+        { status: 400 },
+      );
+    }
     const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from("listings")

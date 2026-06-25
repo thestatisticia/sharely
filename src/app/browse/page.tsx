@@ -23,12 +23,12 @@ const BrowseGrid = dynamic(
   },
 );
 
-const KampalaHeatmap = dynamic(
+const NearbyAreas = dynamic(
   () =>
-    import("@/components/kampala/KampalaHeatmap").then((m) => m.KampalaHeatmap),
+    import("@/components/kampala/NearbyAreas").then((m) => m.NearbyAreas),
   {
     loading: () => (
-      <div className="h-36 animate-pulse rounded-xl bg-skeleton" />
+      <div className="h-48 animate-pulse rounded-xl bg-skeleton" />
     ),
     ssr: false,
   },
@@ -44,8 +44,8 @@ function BrowseContent() {
     <Page>
       <PageHero
         eyebrow={KAMPALA_CITY_LABEL}
-        title="Browse items"
-        description="Tools, electronics, and gear from verified neighbors."
+        title="Explore rentals"
+        description="Rent equipment from verified owners nearby — clear daily rates, deposits, and instant G$ payments."
       />
 
       {area ? (
@@ -60,16 +60,16 @@ function BrowseContent() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search drills, tents, generators…"
+          placeholder="Search drills, speakers, generators…"
           className="pl-11"
         />
       </div>
 
-      <PageSection eyebrow="Kampala" title="Neighborhoods">
-        <KampalaHeatmap selectedArea={area} />
+      <PageSection title="Available nearby">
+        <NearbyAreas selectedArea={area} />
       </PageSection>
 
-      <PageSection title="All listings">
+      <PageSection title="Items near you">
         <BrowseGrid query={query} area={area ?? undefined} />
       </PageSection>
     </Page>

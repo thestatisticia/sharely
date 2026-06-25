@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, TrendingUp } from "lucide-react";
 
 import { FeaturePills } from "@/components/home/FeaturePills";
 import { ItemCard } from "@/components/items/ItemCard";
@@ -18,28 +18,30 @@ export default function HomePage() {
         eyebrow={KAMPALA_CITY_LABEL}
         title={
           <>
-            Rent neighbor gear with{" "}
-            <span className="text-gradient">daily G$</span>
+            Rent what you need.
+            <br />
+            Earn from what you own.
           </>
         }
-        description="Verified Kampala citizens list tools and electronics. Renters pay streaming G$ and lock refundable deposits on Celo."
+        description="Find tools, electronics and equipment available near you — with verified owners, clear pricing, and refundable security deposits in G$."
       >
         <Link href="/browse">
           <Button size="lg" variant="gradient">
-            Explore listings
+            Explore rentals
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
-        <Link href="/profile">
+        <Link href="/list">
           <Button size="lg" variant="secondary">
-            Claim G$
+            <TrendingUp className="h-4 w-4" />
+            Rent out gear
           </Button>
         </Link>
       </PageHero>
 
       <FeaturePills />
 
-      <PageSection eyebrow="Marketplace" title="Popular near you">
+      <PageSection eyebrow="Marketplace" title="Popular rentals near you">
         <div className="grid gap-5">
           {featured.map((listing) => (
             <ItemCard key={listing.id} listing={listing} elevated />
@@ -49,7 +51,7 @@ export default function HomePage() {
           href="/browse"
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent transition hover:gap-2.5"
         >
-          View all listings
+          View available rentals
           <ArrowRight className="h-4 w-4" />
         </Link>
       </PageSection>

@@ -6,7 +6,7 @@ import {
   Compass,
   Home,
   Package,
-  PlusCircle,
+  TrendingUp,
   UserRound,
 } from "lucide-react";
 
@@ -18,9 +18,9 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/browse", label: "Browse", icon: Compass },
-  { href: "/list", label: "List", icon: PlusCircle },
-  { href: "/rentals", label: "Rentals", icon: Package },
+  { href: "/browse", label: "Explore", icon: Compass },
+  { href: "/list", label: "Rent out", icon: TrendingUp },
+  { href: "/rentals", label: "My rentals", icon: Package },
   { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
