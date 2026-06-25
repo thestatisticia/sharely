@@ -7,10 +7,11 @@ import { ItemCard } from "@/components/items/ItemCard";
 import { PageSection } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
 import { useClientListings } from "@/hooks/useClientListing";
+import { isPublicListing } from "@/lib/listing-visibility";
 
 export function FeaturedListings() {
   const { listings, loading } = useClientListings();
-  const featured = listings.slice(0, 3);
+  const featured = listings.filter(isPublicListing).slice(0, 3);
 
   return (
     <PageSection

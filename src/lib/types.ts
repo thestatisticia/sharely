@@ -23,6 +23,8 @@ export interface Listing {
   ownerName: string;
   createdAt: string;
   available: boolean;
+  /** Owner delisted — stay off Explore even after a rental ends. */
+  hiddenByOwner?: boolean;
 }
 
 export interface Rental {

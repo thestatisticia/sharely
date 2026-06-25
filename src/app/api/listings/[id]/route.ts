@@ -6,6 +6,7 @@ import {
   rowToListing,
 } from "@/lib/supabase/server";
 import { isPublishedListing } from "@/lib/listing-filters";
+import { isPublicListing } from "@/lib/listing-visibility";
 import { hasRenderableImage } from "@/lib/imageUrl";
 
 export async function GET(
@@ -35,6 +36,9 @@ export async function GET(
       if (!isPublishedListing(listing) || !hasRenderableImage(listing.imageUrl)) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
+      if (!isPublicListing(listing)) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
       return NextResponse.json(listing);
     }
 
@@ -52,13 +56,25 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const body = (await request.json()) as { available?: boolean };
+  const body = (await request.json()) as {
+    available?: boolean;
+    hiddenByOwner?: boolean;
+  };
 
-  if (typeof body.available !== "boolean") {
+  if (
+    typeof body.available !== "boolean" &&
+    typeof body.hiddenByOwner !== "boolean"
+  ) {
     return NextResponse.json(
-      { error: "available (boolean) is required" },
+      { error: "available or hiddenByOwner (boolean) is required" },
       { status: 400 },
     );
+  }
+
+  const rowPatch: Record<string, boolean> = {};
+  if (typeof body.available === "boolean") rowPatch.available = body.available;
+  if (typeof body.hiddenByOwner === "boolean") {
+    rowPatch.hidden_by_owner = body.hiddenByOwner;
   }
 
   if (!isSupabaseConfigured()) {
@@ -67,12 +83,24 @@ export async function PATCH(
 
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("listings")
-      .update({ available: body.available })
+      .update(rowPatch)
       .eq("id", id)
       .select("*")
       .maybeSingle();
+
+    if (error?.message.includes("hidden_by_owner") && rowPatch.hidden_by_owner !== undefined) {
+      const { hidden_by_owner: _hidden, ...withoutHidden } = rowPatch;
+      const retry = await supabase
+        .from("listings")
+        .update(withoutHidden)
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

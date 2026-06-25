@@ -114,7 +114,7 @@ export function RentalCard({
       void patchRental(
         rental.id,
         { status: "completed" },
-        { listingId: rental.listingId, relistOnComplete: true },
+        { listingId: rental.listingId, relistOnComplete: true, ownerAddress: rental.ownerAddress },
       ).then(onUpdated);
     } else if (
       chain.streamActive &&

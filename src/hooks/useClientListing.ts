@@ -45,8 +45,13 @@ export function useClientListings(refreshKey = 0) {
 
   useEffect(() => {
     const onFocus = () => void reload();
+    const onUpdated = () => void reload();
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    window.addEventListener("sharely:listings-updated", onUpdated);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("sharely:listings-updated", onUpdated);
+    };
   }, [reload]);
 
   return { listings, loading, reload };

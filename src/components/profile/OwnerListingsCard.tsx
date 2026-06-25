@@ -9,14 +9,16 @@ import { Badge } from "@/components/ui/Badge";
 import { useClientRentals } from "@/hooks/useClientRentals";
 import {
   fetchOwnerListings,
-  setListingAvailability,
+  setListingVisibility,
 } from "@/lib/listings-api";
+import { isPublicListing } from "@/lib/listing-visibility";
 import type { Listing } from "@/lib/types";
 
 function listingStatus(
   listing: Listing,
   rentedListingIds: Set<string>,
 ): "live" | "hidden" | "rented" {
+  if (listing.hiddenByOwner) return "hidden";
   if (!listing.available && rentedListingIds.has(listing.id)) return "rented";
   if (!listing.available) return "hidden";
   return "live";
@@ -71,7 +73,18 @@ export function OwnerListingsCard({
     setBusyId(listing.id);
     setError(null);
     try {
-      await setListingAvailability(listing.id, !hide);
+      if (hide) {
+        await setListingVisibility(listing.id, {
+          hiddenByOwner: true,
+          available: false,
+        });
+      } else {
+        const rented = rentedListingIds.has(listing.id);
+        await setListingVisibility(listing.id, {
+          hiddenByOwner: false,
+          available: !rented,
+        });
+      }
       await reload();
     } catch (err) {
       setError(

@@ -36,6 +36,17 @@ Demo items may still live **in your database** even after a code deploy.
 
 Then hard-refresh the site (Ctrl+Shift+R). In Vercel, confirm the latest deploy is from commit `db5f26a` or newer.
 
+## 1e. Fix hide / delist (items still on Explore after hiding)
+
+1. Open **SQL Editor** → paste [`listings-hidden-column.sql`](./listings-hidden-column.sql) → **Run**
+2. Re-hide the item on **Profile → My listed items**
+
+To mark already-hidden items in the database:
+
+```sql
+update public.listings set hidden_by_owner = true where available = false;
+```
+
 ## 2. Copy API credentials
 
 **Project Settings → API**

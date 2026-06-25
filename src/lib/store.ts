@@ -36,12 +36,18 @@ export function saveListing(listing: Listing) {
   writeJson(LISTINGS_KEY, [listing, ...custom]);
 }
 
-export function updateListingAvailability(id: string, available: boolean) {
+export function updateListingVisibility(
+  id: string,
+  patch: { available?: boolean; hiddenByOwner?: boolean },
+) {
   const custom = readJson<Listing[]>(LISTINGS_KEY, []);
-  const next = custom.map((l) =>
-    l.id === id ? { ...l, available } : l,
-  );
+  const next = custom.map((l) => (l.id === id ? { ...l, ...patch } : l));
   writeJson(LISTINGS_KEY, next);
+}
+
+/** @deprecated Use updateListingVisibility */
+export function updateListingAvailability(id: string, available: boolean) {
+  updateListingVisibility(id, { available });
 }
 
 export function getRentals(): Rental[] {

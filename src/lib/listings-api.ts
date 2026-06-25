@@ -3,8 +3,14 @@ import {
   getListingById,
   getListings,
   saveListing,
-  updateListingAvailability,
+  updateListingVisibility,
 } from "@/lib/store";
+
+export function notifyListingsUpdated() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("sharely:listings-updated"));
+  }
+}
 
 export function useRemoteListings(): boolean {
   return Boolean(
@@ -81,22 +87,44 @@ export async function fetchOwnerListings(
   return Array.isArray(data) ? data : [];
 }
 
-export async function setListingAvailability(
+export async function setListingVisibility(
   listingId: string,
-  available: boolean,
+  patch: { available?: boolean; hiddenByOwner?: boolean },
 ): Promise<void> {
-  updateListingAvailability(listingId, available);
+  updateListingVisibility(listingId, patch);
 
-  if (!useRemoteListings()) return;
+  if (!useRemoteListings()) {
+    notifyListingsUpdated();
+    return;
+  }
 
   const res = await fetch(`/api/listings/${listingId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ available }),
+    body: JSON.stringify(patch),
   });
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "Could not update listing availability");
+    throw new Error(body.error ?? "Could not update listing visibility");
   }
+
+  notifyListingsUpdated();
+}
+
+export async function setListingAvailability(
+  listingId: string,
+  available: boolean,
+): Promise<void> {
+  await setListingVisibility(listingId, { available });
+}
+
+export async function relistAfterRental(
+  listingId: string,
+  ownerAddress: `0x${string}`,
+): Promise<void> {
+  const listings = await fetchOwnerListings(ownerAddress);
+  const listing = listings.find((l) => l.id === listingId);
+  if (!listing || listing.hiddenByOwner) return;
+  await setListingVisibility(listingId, { available: true });
 }

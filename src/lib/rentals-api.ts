@@ -5,7 +5,7 @@ import {
   saveRental,
   updateRental as updateLocalRental,
 } from "@/lib/store";
-import { useRemoteListings, setListingAvailability } from "@/lib/listings-api";
+import { useRemoteListings, setListingVisibility } from "@/lib/listings-api";
 
 export function useRemoteRentals(): boolean {
   return useRemoteListings();
@@ -78,7 +78,9 @@ export async function createRental(rental: Rental): Promise<void> {
     }
   }
 
-  await setListingAvailability(rental.listingId, false).catch(() => {});
+  await setListingVisibility(rental.listingId, { available: false }).catch(
+    () => {},
+  );
 }
 
 async function upsertRentalOnServer(rental: Rental): Promise<void> {
@@ -107,17 +109,20 @@ export async function patchRental(
       | "txHash"
     >
   >,
-  options?: { listingId?: string; relistOnComplete?: boolean },
+  options?: { listingId?: string; relistOnComplete?: boolean; ownerAddress?: `0x${string}` },
 ): Promise<void> {
   updateLocalRental(id, patch);
 
   if (
     options?.relistOnComplete &&
     options.listingId &&
+    options.ownerAddress &&
     patch.status === "completed"
   ) {
-    const { setListingAvailability } = await import("@/lib/listings-api");
-    await setListingAvailability(options.listingId, true).catch(() => {});
+    const { relistAfterRental } = await import("@/lib/listings-api");
+    await relistAfterRental(options.listingId, options.ownerAddress).catch(
+      () => {},
+    );
   }
 
   if (!useRemoteRentals()) return;

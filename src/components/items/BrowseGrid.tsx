@@ -9,6 +9,7 @@ import { useClientListings } from "@/hooks/useClientListing";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import type { ItemCategory } from "@/lib/types";
 import { hasRenderableImage } from "@/lib/imageUrl";
+import { isPublicListing } from "@/lib/listing-visibility";
 import { cn } from "@/lib/utils";
 
 export function BrowseGrid({
@@ -36,7 +37,7 @@ export function BrowseGrid({
       matchesQuery &&
       matchesArea &&
       hasRenderableImage(listing.imageUrl) &&
-      listing.available
+      isPublicListing(listing)
     );
   });
 

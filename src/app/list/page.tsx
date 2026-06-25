@@ -118,6 +118,7 @@ export default function ListPage() {
       ownerName: `You (${address.slice(0, 6)}…)`,
       createdAt: new Date().toISOString(),
       available: true,
+      hiddenByOwner: false,
     };
 
     try {

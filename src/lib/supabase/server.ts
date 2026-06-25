@@ -39,6 +39,7 @@ export type ListingRow = {
   owner_address: string;
   owner_name: string;
   available: boolean;
+  hidden_by_owner?: boolean;
   created_at: string;
 };
 
@@ -58,6 +59,7 @@ export function rowToListing(row: ListingRow): Listing {
     ownerName: row.owner_name,
     createdAt: row.created_at,
     available: row.available,
+    hiddenByOwner: row.hidden_by_owner ?? false,
   };
 }
 
@@ -76,6 +78,7 @@ export function listingToRow(listing: Listing): ListingRow {
     owner_address: listing.ownerAddress.toLowerCase(),
     owner_name: listing.ownerName,
     available: listing.available,
+    hidden_by_owner: listing.hiddenByOwner ?? false,
     created_at: listing.createdAt,
   };
 }
