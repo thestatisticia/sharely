@@ -142,6 +142,14 @@ export function saveListing(listing: Listing) {
   writeJson(LISTINGS_KEY, [listing, ...custom]);
 }
 
+export function updateListingAvailability(id: string, available: boolean) {
+  const custom = readJson<Listing[]>(LISTINGS_KEY, []);
+  const next = custom.map((l) =>
+    l.id === id ? { ...l, available } : l,
+  );
+  writeJson(LISTINGS_KEY, next);
+}
+
 export function getRentals(): Rental[] {
   return readJson<Rental[]>(RENTALS_KEY, []).sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -168,7 +176,16 @@ export function saveRental(rental: Rental) {
 export function updateRental(
   id: string,
   patch: Partial<
-    Pick<Rental, "status" | "streamStartedAt" | "flowTxHash" | "startDate" | "endDate">
+    Pick<
+      Rental,
+      | "status"
+      | "streamStartedAt"
+      | "ownerHandoverAt"
+      | "flowTxHash"
+      | "startDate"
+      | "endDate"
+      | "txHash"
+    >
   >,
 ) {
   const rentals = getRentals();

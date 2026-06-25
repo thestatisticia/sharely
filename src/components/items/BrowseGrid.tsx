@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount } from "wagmi";
 
-import { useClientListings } from "@/hooks/useClientListing";
 import { matchesAreaFilter } from "@/components/kampala/KampalaHeatmap";
 import { ItemCard } from "@/components/items/ItemCard";
 import { Surface } from "@/components/layout/Page";
+import { useClientListings } from "@/hooks/useClientListing";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import type { ItemCategory } from "@/lib/types";
 import { hasRenderableImage } from "@/lib/imageUrl";
@@ -21,7 +20,6 @@ export function BrowseGrid({
 }) {
   const [category, setCategory] = useState<ItemCategory | "all">("all");
   const { listings, loading } = useClientListings();
-  const { address } = useAccount();
 
   const filtered = listings.filter((listing) => {
     const matchesCategory =
@@ -33,15 +31,12 @@ export function BrowseGrid({
       listing.location.toLowerCase().includes(q) ||
       listing.description.toLowerCase().includes(q);
     const matchesArea = area ? matchesAreaFilter(listing, area) : true;
-    const isOwner =
-      Boolean(address) &&
-      listing.ownerAddress.toLowerCase() === address?.toLowerCase();
     return (
       matchesCategory &&
       matchesQuery &&
       matchesArea &&
       hasRenderableImage(listing.imageUrl) &&
-      (listing.available || isOwner)
+      listing.available
     );
   });
 

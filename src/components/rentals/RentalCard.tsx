@@ -29,7 +29,7 @@ import { getRentalProgress } from "@/lib/rental-progress";
 import { dailyRateToFlowRate } from "@/lib/superfluid";
 import type { Rental } from "@/lib/types";
 
-type Action = "confirm" | "stop" | "claim" | "start" | null;
+type Action = "confirm" | "stop" | "claim" | "start" | "handover" | null;
 
 function StreamProgress({
   progress,
@@ -102,11 +102,36 @@ export function RentalCard({
 
   useEffect(() => {
     if (chain.isComplete && rental.status !== "completed") {
-      void patchRental(rental.id, { status: "completed" }).then(onUpdated);
+      void patchRental(
+        rental.id,
+        { status: "completed" },
+        { listingId: rental.listingId, relistOnComplete: true },
+      ).then(onUpdated);
     } else if (chain.streamActive && rental.status === "pending") {
       void patchRental(rental.id, { status: "active" }).then(onUpdated);
     }
-  }, [chain.isComplete, chain.streamActive, rental.id, rental.status, onUpdated]);
+  }, [
+    chain.isComplete,
+    chain.streamActive,
+    rental.id,
+    rental.listingId,
+    rental.status,
+    onUpdated,
+  ]);
+
+  async function handleConfirmHandover() {
+    setAction("handover");
+    setError(null);
+    try {
+      const now = new Date().toISOString();
+      await patchRental(rental.id, { ownerHandoverAt: now });
+      onUpdated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not record handover");
+    } finally {
+      setAction(null);
+    }
+  }
 
   async function waitTx(hash: `0x${string}`) {
     if (!publicClient) throw new Error("No RPC client");
@@ -317,9 +342,38 @@ export function RentalCard({
             New booking — deposit locked
           </p>
           <p className="mt-1 text-xs">
-            A renter reserved your item. Hand over the gear, then they confirm
-            pickup to start payments. You&apos;ll see stream progress here once
-            live.
+            Hand over the item, then tap below. The renter must start the G$
+            stream from their wallet — you cannot start it for them. Do not
+            confirm return until rental payments have streamed.
+          </p>
+          {!rental.ownerHandoverAt ? (
+            <Button
+              fullWidth
+              className="mt-3"
+              size="sm"
+              onClick={() => void handleConfirmHandover()}
+              disabled={busy}
+            >
+              {action === "handover" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              I&apos;ve delivered the item
+            </Button>
+          ) : (
+            <p className="mt-2 text-xs font-medium">
+              Handover recorded — waiting for renter to start payments.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {isRenter && rental.ownerHandoverAt && awaitingPickup ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900">
+          <p className="font-semibold">Owner confirms delivery</p>
+          <p className="mt-1 text-xs">
+            Start the rental stream now. Your deposit is locked until the rental
+            ends — the owner is protected, but you must begin payments to stay in
+            good standing.
           </p>
         </div>
       ) : null}

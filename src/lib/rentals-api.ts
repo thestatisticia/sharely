@@ -4,7 +4,7 @@ import {
   saveRental,
   updateRental as updateLocalRental,
 } from "@/lib/store";
-import { useRemoteListings } from "@/lib/listings-api";
+import { useRemoteListings, setListingAvailability } from "@/lib/listings-api";
 
 export function useRemoteRentals(): boolean {
   return useRemoteListings();
@@ -41,27 +41,48 @@ export async function fetchRentalsForWallet(
 export async function createRental(rental: Rental): Promise<void> {
   saveRental(rental);
 
-  if (!useRemoteRentals()) return;
+  if (useRemoteRentals()) {
+    const res = await fetch("/api/rentals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rental),
+    });
 
-  const res = await fetch("/api/rentals", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(rental),
-  });
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "Could not save rental to server");
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? "Could not save rental to server");
+    }
   }
+
+  await setListingAvailability(rental.listingId, false).catch(() => {});
 }
 
 export async function patchRental(
   id: string,
   patch: Partial<
-    Pick<Rental, "status" | "streamStartedAt" | "flowTxHash" | "startDate" | "endDate" | "txHash">
+    Pick<
+      Rental,
+      | "status"
+      | "streamStartedAt"
+      | "ownerHandoverAt"
+      | "flowTxHash"
+      | "startDate"
+      | "endDate"
+      | "txHash"
+    >
   >,
+  options?: { listingId?: string; relistOnComplete?: boolean },
 ): Promise<void> {
   updateLocalRental(id, patch);
+
+  if (
+    options?.relistOnComplete &&
+    options.listingId &&
+    patch.status === "completed"
+  ) {
+    const { setListingAvailability } = await import("@/lib/listings-api");
+    await setListingAvailability(options.listingId, true).catch(() => {});
+  }
 
   if (!useRemoteRentals()) return;
 

@@ -96,6 +96,7 @@ export type RentalRow = {
   escrow_tx_hash: string | null;
   flow_tx_hash: string | null;
   stream_started_at: string | null;
+  owner_handover_at: string | null;
   start_date: string;
   end_date: string;
   created_at: string;
@@ -118,6 +119,7 @@ export function rowToRental(row: RentalRow): Rental {
     escrowTxHash: row.escrow_tx_hash as `0x${string}` | undefined,
     flowTxHash: row.flow_tx_hash as `0x${string}` | undefined,
     streamStartedAt: row.stream_started_at ?? undefined,
+    ownerHandoverAt: row.owner_handover_at ?? undefined,
     startDate: row.start_date,
     endDate: row.end_date,
     createdAt: row.created_at,
@@ -141,6 +143,7 @@ export function rentalToRow(rental: Rental): RentalRow {
     escrow_tx_hash: rental.escrowTxHash ?? null,
     flow_tx_hash: rental.flowTxHash ?? null,
     stream_started_at: rental.streamStartedAt ?? null,
+    owner_handover_at: rental.ownerHandoverAt ?? null,
     start_date: rental.startDate,
     end_date: rental.endDate,
     created_at: rental.createdAt,
@@ -156,6 +159,9 @@ export function rentalPatchToRow(
   if (patch.txHash !== undefined) row.tx_hash = patch.txHash;
   if (patch.streamStartedAt !== undefined) {
     row.stream_started_at = patch.streamStartedAt;
+  }
+  if (patch.ownerHandoverAt !== undefined) {
+    row.owner_handover_at = patch.ownerHandoverAt;
   }
   if (patch.startDate !== undefined) row.start_date = patch.startDate;
   if (patch.endDate !== undefined) row.end_date = patch.endDate;

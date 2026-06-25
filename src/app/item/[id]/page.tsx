@@ -68,7 +68,11 @@ export default function ItemPage({
               <Badge className="bg-emerald-50 text-emerald-800">
                 Available today
               </Badge>
-            ) : null}
+            ) : (
+              <Badge className="bg-amber-50 text-amber-900">
+                Currently rented
+              </Badge>
+            )}
           </div>
           <h1 className="text-2xl font-semibold leading-tight text-foreground">
             {listing.title}
@@ -101,7 +105,17 @@ export default function ItemPage({
         </div>
       </Surface>
 
-      <RentPanel listing={listing} />
+      {listing.available ? (
+        <RentPanel listing={listing} />
+      ) : (
+        <div className="surface-elevated p-5 text-center sm:p-6">
+          <p className="font-semibold text-foreground">Currently rented</p>
+          <p className="mt-2 text-sm text-muted">
+            This item is booked until the active rental ends. Check back later or
+            browse other listings nearby.
+          </p>
+        </div>
+      )}
     </Page>
   );
 }

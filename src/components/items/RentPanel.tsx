@@ -88,6 +88,11 @@ export function RentPanel({ listing }: { listing: Listing }) {
       return;
     }
 
+    if (!listing.available) {
+      setError("This item is currently rented.");
+      return;
+    }
+
     if (!verification.canParticipate) {
       setError("Verify your GoodDollar identity first.");
       return;

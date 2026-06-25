@@ -16,6 +16,7 @@ create table if not exists public.rentals (
   escrow_tx_hash text,
   flow_tx_hash text,
   stream_started_at timestamptz,
+  owner_handover_at timestamptz,
   start_date timestamptz not null,
   end_date timestamptz not null,
   created_at timestamptz not null default now()
@@ -25,6 +26,7 @@ create index if not exists rentals_created_at_idx on public.rentals (created_at 
 create index if not exists rentals_renter_idx on public.rentals (renter_address);
 create index if not exists rentals_owner_idx on public.rentals (owner_address);
 create index if not exists rentals_booking_idx on public.rentals (booking_id);
+create index if not exists rentals_listing_idx on public.rentals (listing_id);
 
 alter table public.rentals enable row level security;
 

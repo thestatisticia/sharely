@@ -3,6 +3,7 @@ import {
   getListingById,
   getListings,
   saveListing,
+  updateListingAvailability,
 } from "@/lib/store";
 
 export function useRemoteListings(): boolean {
@@ -59,4 +60,24 @@ export async function createListing(listing: Listing): Promise<void> {
     return;
   }
   saveListing(listing);
+}
+
+export async function setListingAvailability(
+  listingId: string,
+  available: boolean,
+): Promise<void> {
+  updateListingAvailability(listingId, available);
+
+  if (!useRemoteListings()) return;
+
+  const res = await fetch(`/api/listings/${listingId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ available }),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Could not update listing availability");
+  }
 }

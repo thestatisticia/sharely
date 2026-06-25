@@ -42,6 +42,8 @@ export interface Rental {
   flowTxHash?: `0x${string}`;
   /** When the Superfluid payment stream began (after pickup). */
   streamStartedAt?: string;
+  /** Owner confirms physical handover — prompts renter to start stream. */
+  ownerHandoverAt?: string;
   createdAt: string;
   startDate: string;
   endDate: string;
