@@ -1,5 +1,6 @@
 import type { Rental } from "@/lib/types";
 import {
+  getRentals,
   getRentalsForWallet,
   saveRental,
   updateRental as updateLocalRental,
@@ -80,6 +81,18 @@ export async function createRental(rental: Rental): Promise<void> {
   await setListingAvailability(rental.listingId, false).catch(() => {});
 }
 
+async function upsertRentalOnServer(rental: Rental): Promise<void> {
+  const res = await fetch("/api/rentals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rental),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Could not sync rental to server");
+  }
+}
+
 export async function patchRental(
   id: string,
   patch: Partial<
@@ -117,6 +130,13 @@ export async function patchRental(
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
+    if (res.status === 404) {
+      const rental = getRentals().find((r) => r.id === id);
+      if (rental) {
+        await upsertRentalOnServer({ ...rental, ...patch });
+        return;
+      }
+    }
     throw new Error(body.error ?? "Could not update rental on server");
   }
 }

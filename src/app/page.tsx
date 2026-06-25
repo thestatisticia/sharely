@@ -9,7 +9,7 @@ import { KAMPALA_CITY_LABEL } from "@/lib/kampala";
 
 export default function HomePage() {
   return (
-    <Page>
+    <Page className="gap-10">
       <PageHero
         mesh
         eyebrow={KAMPALA_CITY_LABEL}
@@ -22,15 +22,15 @@ export default function HomePage() {
         }
         description="Discover verified listings from real owners in Kampala — tools, electronics, and everyday items. Rent with G$, protected by escrow deposits and clear daily rates."
       >
-        <Link href="/browse">
-          <Button size="lg" variant="gradient">
+        <Link href="/browse" className="w-full sm:w-auto">
+          <Button size="lg" variant="gradient" fullWidth className="sm:w-auto">
             <Compass className="h-4 w-4" />
             Find items to rent
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
-        <Link href="/list">
-          <Button size="lg" variant="secondary">
+        <Link href="/list" className="w-full sm:w-auto">
+          <Button size="lg" variant="secondary" fullWidth className="sm:w-auto">
             <TrendingUp className="h-4 w-4" />
             Rent out items
           </Button>

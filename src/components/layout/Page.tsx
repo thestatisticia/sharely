@@ -30,7 +30,7 @@ export function PageHero({
     <header
       className={cn(
         "space-y-6",
-        mesh && "hero-wash -mx-6 rounded-b-3xl px-6 pb-10 pt-3",
+        mesh && "hero-wash -mx-5 rounded-b-3xl px-5 pb-10 pt-2",
       )}
     >
       {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
@@ -43,7 +43,9 @@ export function PageHero({
         </p>
       ) : null}
       {children ? (
-        <div className="flex flex-wrap items-center gap-3 pt-0.5">{children}</div>
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {children}
+        </div>
       ) : null}
     </header>
   );

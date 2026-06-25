@@ -74,7 +74,9 @@ export async function POST(request: Request) {
   try {
     const rental = (await request.json()) as Rental;
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("rentals").insert(rentalToRow(rental));
+    const { error } = await supabase
+      .from("rentals")
+      .upsert(rentalToRow(rental), { onConflict: "id" });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

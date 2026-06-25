@@ -62,6 +62,25 @@ export async function createListing(listing: Listing): Promise<void> {
   saveListing(listing);
 }
 
+export async function fetchOwnerListings(
+  wallet: `0x${string}`,
+): Promise<import("@/lib/types").Listing[]> {
+  if (!useRemoteListings()) {
+    const lower = wallet.toLowerCase();
+    return getListings().filter(
+      (l) => l.ownerAddress.toLowerCase() === lower,
+    );
+  }
+
+  const res = await fetch(
+    `/api/listings/owner?wallet=${encodeURIComponent(wallet)}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error("Could not load your listings");
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export async function setListingAvailability(
   listingId: string,
   available: boolean,

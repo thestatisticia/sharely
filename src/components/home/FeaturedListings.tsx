@@ -31,31 +31,32 @@ export function FeaturedListings() {
             the marketplace.
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Link href="/browse">
-              <Button variant="secondary" fullWidth>
-                Browse explore
+            <Link href="/browse" className="block w-full sm:inline-block sm:w-auto">
+              <Button variant="secondary" fullWidth className="sm:w-auto">
+                Browse items
               </Button>
             </Link>
-            <Link href="/list">
-              <Button fullWidth>List an item</Button>
+            <Link href="/list" className="block w-full sm:inline-block sm:w-auto">
+              <Button fullWidth className="sm:w-auto">List an item</Button>
             </Link>
           </div>
         </div>
       ) : (
-        <div className="grid gap-5">
-          {featured.map((listing) => (
-            <ItemCard key={listing.id} listing={listing} elevated />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-5">
+            {featured.map((listing) => (
+              <ItemCard key={listing.id} listing={listing} elevated />
+            ))}
+          </div>
+          <Link
+            href="/browse"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+          >
+            Find more items to rent
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </>
       )}
-
-      <Link
-        href="/browse"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent transition hover:gap-2.5"
-      >
-        Find more items to rent
-        <ArrowRight className="h-4 w-4" />
-      </Link>
     </PageSection>
   );
 }
