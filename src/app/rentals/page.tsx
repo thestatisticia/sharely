@@ -1,23 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
-import { PackageOpen } from "lucide-react";
+import { Loader2, PackageOpen } from "lucide-react";
 
 import { RentalCard } from "@/components/rentals/RentalCard";
-import { Page, PageHero } from "@/components/layout/Page";
+import { Page, PageHero, Surface } from "@/components/layout/Page";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
-import { getRentalsForWallet } from "@/lib/store";
+import { useClientRentals } from "@/hooks/useClientRentals";
 
 export default function RentalsPage() {
   const { address, isConnected } = useAccount();
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const rentals = useMemo(
-    () => getRentalsForWallet(address),
-    [address, refreshKey],
-  );
+  const { rentals, loading, error, reload } = useClientRentals(address);
 
   const renting = rentals.filter(
     (r) => r.renterAddress.toLowerCase() === address?.toLowerCase(),
@@ -25,10 +19,6 @@ export default function RentalsPage() {
   const lending = rentals.filter(
     (r) => r.ownerAddress.toLowerCase() === address?.toLowerCase(),
   );
-
-  const onUpdated = useCallback(() => {
-    setRefreshKey((k) => k + 1);
-  }, []);
 
   if (!isConnected || !address) {
     return (
@@ -48,17 +38,37 @@ export default function RentalsPage() {
     <Page className="gap-8">
       <PageHero
         title="My rentals"
-        description="Track rentals you booked and items you rent out — confirm returns, stop streams, and claim deposits."
+        description="Synced across devices — owners see bookings instantly when renters reserve an item."
       />
 
-      {rentals.length === 0 ? (
+      <Surface className="p-4 text-sm text-muted">
+        <p>
+          <strong className="text-foreground">Owners:</strong> bookings appear under{" "}
+          <em>Renting out</em>. Earnings stream to your G$ wallet — no claim needed.
+        </p>
+        <p className="mt-2">
+          <strong className="text-foreground">Renters:</strong> confirm pickup to
+          start payments, then stop the stream when done.
+        </p>
+      </Surface>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <Surface className="p-6 text-center text-sm text-red-700">
+          {error}
+        </Surface>
+      ) : rentals.length === 0 ? (
         <div className="surface p-8 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-primary">
             <PackageOpen className="h-7 w-7" />
           </div>
           <p className="mt-4 font-semibold">No rentals yet</p>
           <p className="mt-1 text-sm text-muted">
-            Explore rentals and pay with G$ to see activity here.
+            When someone books your item (or you book one), it appears here for
+            both wallets.
           </p>
           <Link
             href="/browse"
@@ -69,27 +79,33 @@ export default function RentalsPage() {
         </div>
       ) : (
         <>
-          {renting.length > 0 ? (
+          {lending.length > 0 ? (
             <section className="space-y-3">
-              <h2 className="text-lg font-bold">Renting ({renting.length})</h2>
-              {renting.map((rental) => (
+              <h2 className="text-lg font-bold">
+                Renting out ({lending.length})
+              </h2>
+              <p className="text-sm text-muted">
+                Items others have booked from you.
+              </p>
+              {lending.map((rental) => (
                 <RentalCard
                   key={rental.id}
                   rental={rental}
-                  onUpdated={onUpdated}
+                  onUpdated={reload}
                 />
               ))}
             </section>
           ) : null}
 
-          {lending.length > 0 ? (
+          {renting.length > 0 ? (
             <section className="space-y-3">
-              <h2 className="text-lg font-bold">Lending ({lending.length})</h2>
-              {lending.map((rental) => (
+              <h2 className="text-lg font-bold">Renting ({renting.length})</h2>
+              <p className="text-sm text-muted">Items you booked from owners.</p>
+              {renting.map((rental) => (
                 <RentalCard
                   key={rental.id}
                   rental={rental}
-                  onUpdated={onUpdated}
+                  onUpdated={reload}
                 />
               ))}
             </section>

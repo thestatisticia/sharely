@@ -167,7 +167,9 @@ export function saveRental(rental: Rental) {
 
 export function updateRental(
   id: string,
-  patch: Partial<Pick<Rental, "status">>,
+  patch: Partial<
+    Pick<Rental, "status" | "streamStartedAt" | "flowTxHash" | "startDate" | "endDate">
+  >,
 ) {
   const rentals = getRentals();
   const next = rentals.map((r) => (r.id === id ? { ...r, ...patch } : r));

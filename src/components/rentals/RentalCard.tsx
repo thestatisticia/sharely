@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import {
   CheckCircle2,
   Clock,
   ExternalLink,
   Loader2,
+  Package,
   Shield,
+  TrendingUp,
   Waves,
 } from "lucide-react";
 
@@ -22,11 +24,42 @@ import {
   escrowAbi,
 } from "@/lib/contracts";
 import { formatG$, shortenAddress } from "@/lib/format";
+import { patchRental } from "@/lib/rentals-api";
+import { getRentalProgress } from "@/lib/rental-progress";
 import { dailyRateToFlowRate } from "@/lib/superfluid";
-import { updateRental } from "@/lib/store";
 import type { Rental } from "@/lib/types";
 
-type Action = "confirm" | "stop" | "claim" | null;
+type Action = "confirm" | "stop" | "claim" | "start" | null;
+
+function StreamProgress({
+  progress,
+  earnedG$,
+  totalRentalG$,
+}: {
+  progress: number;
+  earnedG$: number;
+  totalRentalG$: number;
+}) {
+  const pct = Math.round(progress * 100);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs font-medium">
+        <span className="text-muted">Rental stream progress</span>
+        <span className="text-foreground">{pct}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-surface-hover">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted">
+        ~{formatG$(earnedG$)} G$ earned of {formatG$(totalRentalG$)} G$ rental
+        total
+      </p>
+    </div>
+  );
+}
 
 export function RentalCard({
   rental,
@@ -55,17 +88,71 @@ export function RentalCard({
     rental.dailyRateG$ ??
     Math.round((rental.totalG$ - rental.depositG$) / Math.max(rental.days, 1));
 
+  const progress = useMemo(
+    () =>
+      getRentalProgress(rental, chain.streamActive, chain.depositReleased),
+    [rental, chain.streamActive, chain.depositReleased],
+  );
+
+  const awaitingPickup =
+    Boolean(rental.bookingId) &&
+    !rental.flowTxHash &&
+    !chain.streamActive &&
+    !chain.depositReleased;
+
   useEffect(() => {
     if (chain.isComplete && rental.status !== "completed") {
-      updateRental(rental.id, { status: "completed" });
-      onUpdated();
+      void patchRental(rental.id, { status: "completed" }).then(onUpdated);
+    } else if (chain.streamActive && rental.status === "pending") {
+      void patchRental(rental.id, { status: "active" }).then(onUpdated);
     }
-  }, [chain.isComplete, rental.id, rental.status, onUpdated]);
+  }, [chain.isComplete, chain.streamActive, rental.id, rental.status, onUpdated]);
 
   async function waitTx(hash: `0x${string}`) {
     if (!publicClient) throw new Error("No RPC client");
     await publicClient.waitForTransactionReceipt({ hash });
     setTxHash(hash);
+  }
+
+  async function handleStartStream() {
+    if (!address) return;
+    setAction("start");
+    setError(null);
+    try {
+      const flowRate = dailyRateToFlowRate(dailyRate);
+      const hash = await writeContractAsync({
+        address: CFA_FORWARDER_ADDRESS,
+        abi: cfaForwarderAbi,
+        functionName: "createFlow",
+        args: [
+          G_DOLLAR_TOKEN_ADDRESS,
+          address,
+          rental.ownerAddress,
+          flowRate,
+          "0x",
+        ],
+      });
+      await waitTx(hash);
+
+      const now = new Date();
+      const end = new Date(now);
+      end.setDate(end.getDate() + rental.days);
+
+      await patchRental(rental.id, {
+        status: "active",
+        flowTxHash: hash,
+        txHash: hash,
+        streamStartedAt: now.toISOString(),
+        startDate: now.toISOString(),
+        endDate: end.toISOString(),
+      });
+      await chain.refetch();
+      onUpdated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start stream");
+    } finally {
+      setAction(null);
+    }
   }
 
   async function handleConfirmReturn() {
@@ -140,16 +227,22 @@ export function RentalCard({
   const statusTone =
     rental.status === "completed" || chain.isComplete
       ? "success"
-      : rental.status === "active"
+      : progress.phase === "streaming"
         ? "warning"
-        : "muted";
+        : progress.phase === "pending"
+          ? "muted"
+          : rental.status === "active"
+            ? "warning"
+            : "muted";
 
   const statusLabel =
     chain.isComplete || rental.status === "completed"
       ? "completed"
-      : chain.streamActive
-        ? "streaming"
-        : rental.status;
+      : progress.phase === "pending"
+        ? "awaiting pickup"
+        : chain.streamActive
+          ? "streaming"
+          : rental.status;
 
   return (
     <div className="surface space-y-4 p-4">
@@ -169,6 +262,14 @@ export function RentalCard({
         <Badge tone={statusTone}>{statusLabel}</Badge>
       </div>
 
+      {progress.phase === "streaming" ? (
+        <StreamProgress
+          progress={progress.progress}
+          earnedG$={progress.earnedG$}
+          totalRentalG$={progress.totalRentalG$}
+        />
+      ) : null}
+
       <div className="grid gap-2 text-xs sm:grid-cols-2">
         <div className="flex items-center gap-2 rounded-2xl bg-surface-hover px-3 py-2">
           <Waves className="h-4 w-4 text-primary" />
@@ -178,7 +279,9 @@ export function RentalCard({
               ? "…"
               : chain.streamActive
                 ? "active"
-                : "stopped"}
+                : awaitingPickup
+                  ? "not started"
+                  : "stopped"}
           </span>
         </div>
         <div className="flex items-center gap-2 rounded-2xl bg-surface-hover px-3 py-2">
@@ -194,16 +297,62 @@ export function RentalCard({
         </div>
       </div>
 
+      {isOwner && chain.streamActive ? (
+        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-2.5 text-sm text-emerald-900">
+          <p className="inline-flex items-center gap-1.5 font-semibold">
+            <TrendingUp className="h-4 w-4" />
+            Earnings stream live
+          </p>
+          <p className="mt-1 text-xs">
+            Rental G$ flows straight to your wallet in real time — no claim
+            button needed. Check your G$ balance on Profile.
+          </p>
+        </div>
+      ) : null}
+
+      {isOwner && awaitingPickup && !chain.streamActive ? (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
+          <p className="inline-flex items-center gap-1.5 font-semibold">
+            <Package className="h-4 w-4" />
+            New booking — deposit locked
+          </p>
+          <p className="mt-1 text-xs">
+            A renter reserved your item. Hand over the gear, then they confirm
+            pickup to start payments. You&apos;ll see stream progress here once
+            live.
+          </p>
+        </div>
+      ) : null}
+
       {!chain.hasEscrow ? (
         <p className="rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Escrow not configured or missing booking ID — on-chain actions unavailable.
         </p>
       ) : null}
 
-      {isOwner && !chain.depositReleased && chain.hasEscrow ? (
+      {isRenter && awaitingPickup && !chain.streamActive && chain.hasEscrow ? (
         <div className="space-y-2">
           <p className="text-sm text-muted">
-            Item returned? Confirm to release the renter&apos;s deposit.
+            Received the item from the owner? Start the rental payment stream.
+          </p>
+          <Button
+            fullWidth
+            onClick={() => void handleStartStream()}
+            disabled={busy}
+          >
+            {action === "start" && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            <Package className="h-4 w-4" />
+            I received the item — start rental
+          </Button>
+        </div>
+      ) : null}
+
+      {isOwner && !chain.depositReleased && chain.hasEscrow && !awaitingPickup ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted">
+            Item returned? Confirm to release the renter&apos;s security deposit.
           </p>
           <Button
             fullWidth
@@ -224,8 +373,7 @@ export function RentalCard({
           {chain.streamActive ? (
             <>
               <p className="text-sm text-muted">
-                End the rental period? Stop the G$ stream so you stop paying the
-                daily rate.
+                Finished early? Stop the stream to end daily payments.
               </p>
               <Button
                 fullWidth

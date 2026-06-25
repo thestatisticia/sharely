@@ -15,23 +15,21 @@ import { VerificationGate } from "@/components/wallet/Verification";
 import { useGBalance, useVerificationState } from "@/hooks/useGoodDollar";
 import { createBookingId } from "@/lib/booking";
 import {
-  CFA_FORWARDER_ADDRESS,
   ESCROW_ADDRESS,
   G_DOLLAR_TOKEN_ADDRESS,
-  cfaForwarderAbi,
   erc20Abi,
   escrowAbi,
 } from "@/lib/contracts";
 import { formatG$, parseG$ } from "@/lib/format";
-import { createId, saveRental } from "@/lib/store";
-import { dailyRateToFlowRate, flowRateLabel } from "@/lib/superfluid";
+import { createRental } from "@/lib/rentals-api";
+import { createId } from "@/lib/store";
+import { flowRateLabel } from "@/lib/superfluid";
 import type { Listing } from "@/lib/types";
 
 type RentStep =
   | "idle"
   | "approving"
   | "locking"
-  | "streaming"
   | "done"
   | "error";
 
@@ -49,7 +47,6 @@ export function RentPanel({ listing }: { listing: Listing }) {
 
   const rentalTotal = listing.dailyRateG$ * days;
   const depositWei = parseG$(listing.depositG$);
-  const flowRate = dailyRateToFlowRate(listing.dailyRateG$);
   const hasEscrow = Boolean(ESCROW_ADDRESS);
 
   const { data: allowance } = useReadContract({
@@ -63,17 +60,8 @@ export function RentPanel({ listing }: { listing: Listing }) {
     query: { enabled: Boolean(address && ESCROW_ADDRESS) },
   });
 
-  const { data: bufferData } = useReadContract({
-    address: CFA_FORWARDER_ADDRESS,
-    abi: cfaForwarderAbi,
-    functionName: "getBufferAmountByFlowrate",
-    args: [G_DOLLAR_TOKEN_ADDRESS, flowRate],
-    query: { enabled: hasEscrow && flowRate > BigInt(0) },
-  });
-
-  const streamBuffer =
-    (bufferData as readonly [bigint, bigint] | undefined)?.[0] ?? BigInt(0);
-  const requiredG$ = depositWei + parseG$(rentalTotal) + streamBuffer;
+  /** Deposit only at booking — stream starts after pickup confirmation. */
+  const requiredG$ = depositWei;
 
   const isOwnListing =
     address &&
@@ -131,7 +119,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
 
     if (balance < requiredG$) {
       setError(
-        `Insufficient G$. You need about ${formatG$(requiredG$)} G$ (deposit + ${days}d rental + stream buffer). Balance: ${formatG$(balance)} G$.`,
+        `Insufficient G$. You need ${formatG$(depositWei)} G$ for the security deposit. Balance: ${formatG$(balance)} G$.`,
       );
       return;
     }
@@ -164,26 +152,11 @@ export function RentPanel({ listing }: { listing: Listing }) {
       });
       await wait(lockHash);
 
-      setStep("streaming");
-      const flowHash = await writeContractAsync({
-        address: CFA_FORWARDER_ADDRESS,
-        abi: cfaForwarderAbi,
-        functionName: "createFlow",
-        args: [
-          G_DOLLAR_TOKEN_ADDRESS,
-          address,
-          listing.ownerAddress,
-          flowRate,
-          "0x",
-        ],
-      });
-      await wait(flowHash);
-
       const start = new Date();
       const end = new Date();
       end.setDate(end.getDate() + days);
 
-      saveRental({
+      await createRental({
         id: createId("rental"),
         listingId: listing.id,
         listingTitle: listing.title,
@@ -193,11 +166,9 @@ export function RentPanel({ listing }: { listing: Listing }) {
         dailyRateG$: listing.dailyRateG$,
         totalG$: rentalTotal + listing.depositG$,
         depositG$: listing.depositG$,
-        status: "active",
+        status: "pending",
         bookingId,
         escrowTxHash: lockHash,
-        flowTxHash: flowHash,
-        txHash: flowHash,
         createdAt: new Date().toISOString(),
         startDate: start.toISOString(),
         endDate: end.toISOString(),
@@ -214,11 +185,12 @@ export function RentPanel({ listing }: { listing: Listing }) {
   if (step === "done") {
     return (
       <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-        <p className="font-bold text-emerald-900">Rental active!</p>
+        <p className="font-bold text-emerald-900">Booking confirmed!</p>
         <p className="mt-1 text-sm text-emerald-800">
-          Deposit locked in escrow. Rental streams to {listing.ownerName} at{" "}
-          {flowRateLabel(listing.dailyRateG$)}. Coordinate pickup, then the
-          owner confirms return to release your deposit.
+          Your security deposit is locked in escrow. Meet the owner, pick up the
+          item, then go to <strong>My rentals</strong> and tap{" "}
+          <strong>I received the item</strong> to start the G$ payment stream.
+          The owner earns automatically once the stream is live.
         </p>
         {txHashes.length > 0 ? (
           <ul className="mt-3 space-y-1 text-xs text-emerald-900">
@@ -300,7 +272,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
             <span className="text-right font-semibold">
               {flowRateLabel(listing.dailyRateG$)}
               <span className="block text-xs font-medium text-muted">
-                Streams to owner while active
+                Starts after you confirm pickup
               </span>
             </span>
           </div>
@@ -308,8 +280,8 @@ export function RentPanel({ listing }: { listing: Listing }) {
 
         {address && balance !== undefined ? (
           <p className="text-xs text-muted">
-            Your balance: {formatG$(balance)} G$ · Need ~{formatG$(requiredG$)} G$
-            for this rental
+            Your balance: {formatG$(balance)} G$ · Need {formatG$(depositWei)} G$
+            deposit now (rental stream starts at pickup)
           </p>
         ) : null}
 
@@ -318,11 +290,9 @@ export function RentPanel({ listing }: { listing: Listing }) {
             1. Approve G$ for escrow
           </li>
           <li className={step === "locking" ? "font-semibold text-primary" : ""}>
-            2. Lock deposit in ShareGEscrow
+            2. Lock security deposit
           </li>
-          <li className={step === "streaming" ? "font-semibold text-primary" : ""}>
-            3. Start Superfluid rental stream to owner
-          </li>
+          <li>3. Pick up item → start payment stream in My rentals</li>
         </ol>
 
         {!hasEscrow ? (
@@ -344,9 +314,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
           {busy
             ? step === "approving"
               ? "Approving G$…"
-              : step === "locking"
-                ? "Locking deposit…"
-                : "Starting stream…"
+              : "Locking deposit…"
             : "Request rental"}
         </Button>
       </div>

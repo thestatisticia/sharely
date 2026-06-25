@@ -10,6 +10,14 @@ Use this checklist after creating a Supabase project.
 
 You should see a `listings` table under **Table Editor**.
 
+## 1b. Run the rentals schema
+
+1. Open **SQL Editor** → **New query**
+2. Paste the contents of [`rentals.sql`](./rentals.sql)
+3. Click **Run**
+
+You should see a `rentals` table — this syncs bookings so owners and renters see the same rental on any device.
+
 ## 2. Copy API credentials
 
 **Project Settings → API**

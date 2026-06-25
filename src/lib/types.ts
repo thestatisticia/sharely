@@ -40,6 +40,8 @@ export interface Rental {
   txHash?: `0x${string}`;
   escrowTxHash?: `0x${string}`;
   flowTxHash?: `0x${string}`;
+  /** When the Superfluid payment stream began (after pickup). */
+  streamStartedAt?: string;
   createdAt: string;
   startDate: string;
   endDate: string;
