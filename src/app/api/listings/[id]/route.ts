@@ -5,7 +5,8 @@ import {
   isSupabaseConfigured,
   rowToListing,
 } from "@/lib/supabase/server";
-import { getListingById } from "@/lib/store";
+import { isPublishedListing } from "@/lib/listing-filters";
+import { hasRenderableImage } from "@/lib/imageUrl";
 
 export async function GET(
   _request: Request,
@@ -14,9 +15,7 @@ export async function GET(
   const { id } = await context.params;
 
   if (!isSupabaseConfigured()) {
-    const local = getListingById(id);
-    if (!local) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(local);
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   try {
@@ -32,11 +31,12 @@ export async function GET(
     }
 
     if (data) {
-      return NextResponse.json(rowToListing(data));
+      const listing = rowToListing(data);
+      if (!isPublishedListing(listing) || !hasRenderableImage(listing.imageUrl)) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json(listing);
     }
-
-    const seed = getListingById(id);
-    if (seed) return NextResponse.json(seed);
 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   } catch (err) {

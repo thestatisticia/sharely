@@ -18,6 +18,14 @@ You should see a `listings` table under **Table Editor**.
 
 You should see a `rentals` table — this syncs bookings so owners and renters see the same rental on any device.
 
+## 1c. Run the handover migration (if delivery confirm fails)
+
+If owners see **Could not update rental on server** when confirming delivery:
+
+1. Open **SQL Editor** → **New query**
+2. Paste the contents of [`rentals-migration-handover.sql`](./rentals-migration-handover.sql)
+3. Click **Run**
+
 ## 2. Copy API credentials
 
 **Project Settings → API**

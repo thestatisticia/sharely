@@ -1,45 +1,22 @@
 import { NextResponse } from "next/server";
 
+import { hasRenderableImage } from "@/lib/imageUrl";
+import { fetchPublishedListings } from "@/lib/listings-server";
 import {
   getSupabaseAdmin,
   isSupabaseConfigured,
   listingToRow,
-  rowToListing,
 } from "@/lib/supabase/server";
-import { SEED_LISTINGS } from "@/lib/store";
-import { hasRenderableImage } from "@/lib/imageUrl";
 import type { Listing } from "@/lib/types";
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(SEED_LISTINGS);
+    return NextResponse.json([]);
   }
 
   try {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("listings")
-      .select("*")
-      .eq("available", true)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      const missingTable =
-        error.message.includes("schema cache") ||
-        error.message.includes("does not exist");
-      if (missingTable) {
-        return NextResponse.json(SEED_LISTINGS);
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const remote = (data ?? []).map(rowToListing).filter((l) => hasRenderableImage(l.imageUrl));
-    const remoteIds = new Set(remote.map((l) => l.id));
-    const seeds = SEED_LISTINGS.filter(
-      (l) => !remoteIds.has(l.id) && hasRenderableImage(l.imageUrl),
-    );
-
-    return NextResponse.json([...remote, ...seeds]);
+    const listings = await fetchPublishedListings({ availableOnly: true });
+    return NextResponse.json(listings);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Server error" },

@@ -1,6 +1,11 @@
-import { ShieldCheck, Star, Wallet } from "lucide-react";
+import { Compass, ShieldCheck, Star, Wallet } from "lucide-react";
 
 const features = [
+  {
+    icon: Compass,
+    title: "Find items nearby",
+    text: "Browse real listings from owners in Kampala",
+  },
   {
     icon: ShieldCheck,
     title: "Escrow deposits",
@@ -20,7 +25,7 @@ const features = [
 
 export function FeaturePills() {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3">
       {features.map(({ icon: Icon, title, text }) => (
         <div key={title} className="feature-pill">
           <div className="feature-pill-icon">

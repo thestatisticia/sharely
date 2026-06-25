@@ -1,7 +1,10 @@
--- Run in Supabase SQL Editor if rentals table already exists
+-- SHARELY rentals handover column — run if delivery confirm fails
+-- ("Could not update rental on server")
 
 alter table public.rentals
   add column if not exists owner_handover_at timestamptz;
 
--- Optional: index for active rental lookups by listing
-create index if not exists rentals_listing_idx on public.rentals (listing_id);
+drop policy if exists "rentals_update_public" on public.rentals;
+create policy "rentals_update_public"
+  on public.rentals for update
+  using (true);

@@ -44,8 +44,8 @@ function BrowseContent() {
     <Page>
       <PageHero
         eyebrow={KAMPALA_CITY_LABEL}
-        title="Explore rentals"
-        description="Rent equipment from verified owners nearby — clear daily rates, deposits, and instant G$ payments."
+        title="Find items to rent"
+        description="Browse real listings from verified owners nearby — clear daily rates, escrow deposits, and G$ payments on Celo."
       />
 
       {area ? (

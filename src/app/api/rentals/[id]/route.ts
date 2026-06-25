@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { formatSupabaseError } from "@/lib/listings-server";
 import {
   getSupabaseAdmin,
   isSupabaseConfigured,
@@ -43,10 +44,20 @@ export async function PATCH(
       if (missingTable) {
         return NextResponse.json({ ok: true, localOnly: true });
       }
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: formatSupabaseError(error.message) },
+        { status: 400 },
+      );
     }
 
-    return NextResponse.json({ ok: true, rental: data ? rowToRental(data) : null });
+    if (!data) {
+      return NextResponse.json(
+        { error: "Rental not found on server. Try refreshing My rentals." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ ok: true, rental: rowToRental(data) });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Server error" },
