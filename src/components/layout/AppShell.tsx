@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAccount } from "wagmi";
 import {
   Compass,
   Home,
@@ -14,6 +15,8 @@ import { SharelyLogo } from "@/components/brand/SharelyLogo";
 import { MeshBackground } from "@/components/layout/MeshBackground";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
+import { useClientRentals } from "@/hooks/useClientRentals";
+import { countRenterActions } from "@/lib/renter-action";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -26,6 +29,9 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { address } = useAccount();
+  const { rentals } = useClientRentals(address);
+  const actionCount = countRenterActions(rentals, address);
 
   return (
     <>
@@ -52,22 +58,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href === "/"
                   ? pathname === "/"
                   : pathname.startsWith(href);
+              const showBadge = href === "/rentals" && actionCount > 0;
 
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 rounded-[1rem] px-1 py-2 text-[10px] font-semibold transition-all duration-200",
+                    "relative flex flex-col items-center gap-0.5 rounded-[1rem] px-1 py-2 text-[10px] font-semibold transition-all duration-200",
                     active
                       ? "bg-nav-active text-[var(--nav-active-fg)] shadow-sm"
                       : "text-muted hover:text-foreground",
                   )}
                 >
-                  <Icon
-                    className="h-[1.15rem] w-[1.15rem]"
-                    strokeWidth={active ? 2.5 : 2}
-                  />
+                  <span className="relative">
+                    <Icon
+                      className="h-[1.15rem] w-[1.15rem]"
+                      strokeWidth={active ? 2.5 : 2}
+                    />
+                    {showBadge ? (
+                      <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+                        {actionCount}
+                      </span>
+                    ) : null}
+                  </span>
                   {label}
                 </Link>
               );

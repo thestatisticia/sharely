@@ -21,6 +21,7 @@ import {
 import { KAMPALA_AREAS, formatKampalaLocation } from "@/lib/kampala";
 import { buildListingSignMessage } from "@/lib/listing-sign";
 import { createListing } from "@/lib/listings-api";
+import { recommendedDeposits } from "@/lib/deposit-recommendations";
 import { createId } from "@/lib/store";
 import type { ItemCategory, Listing } from "@/lib/types";
 
@@ -45,6 +46,10 @@ export default function ListPage() {
   const [previewCategory, setPreviewCategory] = useState<ItemCategory>("tools");
   const [preview, setPreview] = useState(LISTING_PHOTOS.drill);
   const [imageHint, setImageHint] = useState<string | null>(null);
+  const [dailyRate, setDailyRate] = useState("");
+  const [deposit, setDeposit] = useState("");
+
+  const depositTiers = recommendedDeposits(Number(dailyRate) || 0);
 
   function handleImageUrlChange(raw: string) {
     const normalized = normalizeImageUrl(raw) || CATEGORY_IMAGES[previewCategory];
@@ -250,6 +255,8 @@ export default function ListPage() {
                 step={1}
                 placeholder="120"
                 required
+                value={dailyRate}
+                onChange={(e) => setDailyRate(e.target.value)}
               />
             </div>
             <div>
@@ -261,9 +268,40 @@ export default function ListPage() {
                 step={1}
                 placeholder="800"
                 required
+                value={deposit}
+                onChange={(e) => setDeposit(e.target.value)}
               />
             </div>
           </div>
+
+          {depositTiers.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted">
+                Recommended deposit (based on daily rate)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {depositTiers.map((tier) => (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    onClick={() => setDeposit(String(tier.amount))}
+                    className={`rounded-full border px-3 py-1.5 text-left text-xs transition-colors ${
+                      deposit === String(tier.amount)
+                        ? "border-primary bg-accent font-semibold text-primary"
+                        : "border-border bg-surface-hover hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="font-bold">{tier.label}</span>
+                    <span className="mx-1 text-muted">·</span>
+                    <span>{tier.amount} G$</span>
+                    <span className="mt-0.5 block text-[10px] text-muted">
+                      {tier.hint}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {error ? (
             <p className="rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -6,6 +6,7 @@ import { Smartphone, Wallet } from "lucide-react";
 
 import { ClaimCard } from "@/components/gooddollar/ClaimCard";
 import { VerifyIdentityCard } from "@/components/gooddollar/VerifyIdentityCard";
+import { EarningsCard } from "@/components/profile/EarningsCard";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import {
   ProfileVerifiedBanner,
@@ -58,6 +59,8 @@ export default function ProfilePage() {
       />
 
       <ProfileVerifiedBanner />
+
+      <EarningsCard address={address} />
 
       <VerifyIdentityCard onStarted={() => void refetchVerification()} />
 

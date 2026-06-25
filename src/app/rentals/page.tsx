@@ -5,9 +5,11 @@ import { useAccount } from "wagmi";
 import { Loader2, PackageOpen } from "lucide-react";
 
 import { RentalCard } from "@/components/rentals/RentalCard";
+import { RenterActionRequired } from "@/components/rentals/RenterActionRequired";
 import { Page, PageHero, Surface } from "@/components/layout/Page";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useClientRentals } from "@/hooks/useClientRentals";
+import { needsRenterAction } from "@/lib/renter-action";
 
 export default function RentalsPage() {
   const { address, isConnected } = useAccount();
@@ -19,6 +21,10 @@ export default function RentalsPage() {
   const lending = rentals.filter(
     (r) => r.ownerAddress.toLowerCase() === address?.toLowerCase(),
   );
+
+  const urgentRenting = renting.filter((r) => needsRenterAction(r, address));
+  const otherRenting = renting.filter((r) => !needsRenterAction(r, address));
+  const sortedRenting = [...urgentRenting, ...otherRenting];
 
   if (!isConnected || !address) {
     return (
@@ -79,6 +85,18 @@ export default function RentalsPage() {
         </div>
       ) : (
         <>
+          {urgentRenting.length > 0 ? (
+            <section className="space-y-3">
+              {urgentRenting.map((rental) => (
+                <RenterActionRequired
+                  key={rental.id}
+                  rental={rental}
+                  onUpdated={reload}
+                />
+              ))}
+            </section>
+          ) : null}
+
           {lending.length > 0 ? (
             <section className="space-y-3">
               <h2 className="text-lg font-bold">
@@ -101,7 +119,7 @@ export default function RentalsPage() {
             <section className="space-y-3">
               <h2 className="text-lg font-bold">Renting ({renting.length})</h2>
               <p className="text-sm text-muted">Items you booked from owners.</p>
-              {renting.map((rental) => (
+              {sortedRenting.map((rental) => (
                 <RentalCard
                   key={rental.id}
                   rental={rental}

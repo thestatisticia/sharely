@@ -11,8 +11,10 @@ import { RentPanel } from "@/components/items/RentPanel";
 import { Page, Surface } from "@/components/layout/Page";
 import { Badge } from "@/components/ui/Badge";
 import { useClientListing } from "@/hooks/useClientListing";
+import { useListingRentalStatus } from "@/hooks/useListingRentalStatus";
 import { CATEGORY_LABELS } from "@/lib/categories";
 import { formatDistance, formatG$ } from "@/lib/format";
+import { getAvailableAgainDate } from "@/lib/renter-action";
 
 function ItemPageSkeleton() {
   return (
@@ -31,6 +33,14 @@ export default function ItemPage({
 }) {
   const { id } = use(params);
   const listing = useClientListing(id);
+  const { rental: activeRental } = useListingRentalStatus(
+    id,
+    listing?.available ?? true,
+  );
+  const availableAgain =
+    activeRental && !listing?.available
+      ? getAvailableAgainDate(activeRental)
+      : null;
 
   if (listing === undefined) {
     return <ItemPageSkeleton />;
@@ -70,7 +80,9 @@ export default function ItemPage({
               </Badge>
             ) : (
               <Badge className="bg-amber-50 text-amber-900">
-                Currently rented
+                {availableAgain
+                  ? `Available again ${availableAgain}`
+                  : "Currently rented"}
               </Badge>
             )}
           </div>
@@ -109,10 +121,15 @@ export default function ItemPage({
         <RentPanel listing={listing} />
       ) : (
         <div className="surface-elevated p-5 text-center sm:p-6">
-          <p className="font-semibold text-foreground">Currently rented</p>
+          <p className="font-semibold text-foreground">
+            {availableAgain
+              ? `Available again ${availableAgain}`
+              : "Currently rented"}
+          </p>
           <p className="mt-2 text-sm text-muted">
-            This item is booked until the active rental ends. Check back later or
-            browse other listings nearby.
+            {availableAgain
+              ? "This item is booked until the active rental ends. Save the date or browse other listings nearby."
+              : "This item is booked until the active rental ends. Check back later or browse other listings nearby."}
           </p>
         </div>
       )}

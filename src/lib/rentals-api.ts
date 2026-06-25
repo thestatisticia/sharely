@@ -38,6 +38,29 @@ export async function fetchRentalsForWallet(
   return getRentalsForWallet(wallet);
 }
 
+export async function fetchActiveRentalForListing(
+  listingId: string,
+): Promise<import("@/lib/types").Rental | null> {
+  if (!useRemoteRentals()) {
+    const { getRentals } = await import("@/lib/store");
+    return (
+      getRentals().find(
+        (r) =>
+          r.listingId === listingId &&
+          r.status !== "completed" &&
+          Boolean(r.bookingId),
+      ) ?? null
+    );
+  }
+
+  const res = await fetch(`/api/rentals/by-listing/${listingId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { rental?: import("@/lib/types").Rental | null };
+  return data.rental ?? null;
+}
+
 export async function createRental(rental: Rental): Promise<void> {
   saveRental(rental);
 

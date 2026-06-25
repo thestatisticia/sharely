@@ -26,3 +26,10 @@ export function formatDistance(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m away`;
   return `${km.toFixed(1)} km away`;
 }
+
+export function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en", {
+    month: "short",
+    day: "numeric",
+  });
+}
