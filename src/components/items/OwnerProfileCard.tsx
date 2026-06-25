@@ -1,10 +1,25 @@
+"use client";
+
 import { CheckCircle2, Star, UserRound } from "lucide-react";
 
+import { useOwnerStats } from "@/hooks/useOwnerStats";
 import { getOwnerProfile } from "@/lib/owner-profile";
 import type { Listing } from "@/lib/types";
 
 export function OwnerProfileCard({ listing }: { listing: Listing }) {
   const owner = getOwnerProfile(listing.ownerAddress, listing.ownerName);
+  const { stats, loading } = useOwnerStats(listing.ownerAddress);
+
+  const rentalLabel =
+    loading
+      ? "…"
+      : stats.completedRentals > 0
+        ? `${stats.completedRentals} completed rental${stats.completedRentals === 1 ? "" : "s"}`
+        : stats.totalRentals > 0
+          ? `${stats.activeRentals} active rental${stats.activeRentals === 1 ? "" : "s"}`
+          : stats.listingsCount > 0
+            ? `${stats.listingsCount} item${stats.listingsCount === 1 ? "" : "s"} listed`
+            : "New owner";
 
   return (
     <div className="rounded-2xl border border-border/70 bg-surface-hover/60 p-4">
@@ -27,9 +42,7 @@ export function OwnerProfileCard({ listing }: { listing: Listing }) {
               {owner.rating} owner
             </span>
           </div>
-          <p className="mt-1 text-sm text-muted">
-            {owner.rentalCount} successful rentals
-          </p>
+          <p className="mt-1 text-sm text-muted">{rentalLabel}</p>
         </div>
       </div>
     </div>

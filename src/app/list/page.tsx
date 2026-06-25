@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { useSignMessage } from "wagmi";
 
 import { ListingPhotoField } from "@/components/listings/ListingPhotoField";
-import { ListingImage } from "@/components/items/ListingImage";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select, Textarea } from "@/components/ui/Field";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
@@ -27,8 +26,6 @@ import type { ItemCategory, Listing } from "@/lib/types";
 
 import { Page, PageHero, Surface } from "@/components/layout/Page";
 
-import { LISTING_PHOTOS, CATEGORY_IMAGES } from "@/lib/listing-images";
-
 export default function ListPage() {
   const router = useRouter();
   const { openModal } = useWalletModal();
@@ -44,7 +41,7 @@ export default function ListPage() {
   const [error, setError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [previewCategory, setPreviewCategory] = useState<ItemCategory>("tools");
-  const [preview, setPreview] = useState(LISTING_PHOTOS.drill);
+  const [preview, setPreview] = useState("");
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [dailyRate, setDailyRate] = useState("");
   const [deposit, setDeposit] = useState("");
@@ -111,7 +108,7 @@ export default function ListPage() {
       title,
       description,
       category,
-      imageUrl: imageUrl || CATEGORY_IMAGES[category],
+      imageUrl,
       dailyRateG$,
       depositG$,
       location,
@@ -197,11 +194,7 @@ export default function ListPage() {
               name="category"
               defaultValue="tools"
               onChange={(e) => {
-                const cat = e.target.value as ItemCategory;
-                setPreviewCategory(cat);
-                if (!uploadedUrl) {
-                  setPreview(CATEGORY_IMAGES[cat]);
-                }
+                setPreviewCategory(e.target.value as ItemCategory);
               }}
             >
               {CATEGORIES.map((cat) => (

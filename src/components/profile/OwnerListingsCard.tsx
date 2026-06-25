@@ -92,7 +92,10 @@ export function OwnerListingsCard({
             <Package className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-bold">My listed items</p>
+            <p className="font-bold">
+              My listed items
+              {!loading && listings.length > 0 ? ` (${listings.length})` : ""}
+            </p>
             <p className="text-sm text-muted">Hide or show items on Explore</p>
           </div>
         </div>

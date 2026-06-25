@@ -73,7 +73,7 @@ export function listingToRow(listing: Listing): ListingRow {
     location: listing.location,
     area: listing.area ?? null,
     distance_km: listing.distanceKm,
-    owner_address: listing.ownerAddress,
+    owner_address: listing.ownerAddress.toLowerCase(),
     owner_name: listing.ownerName,
     available: listing.available,
     created_at: listing.createdAt,

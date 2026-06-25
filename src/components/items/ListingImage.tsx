@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { ImagePlus } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { fallbackImageForCategory } from "@/lib/listing-images";
 import {
@@ -35,6 +36,7 @@ export function ListingImage({
   rounded = "2xl",
   showGradient = false,
   fillContainer = false,
+  fallbackToCategory = true,
 }: {
   src: string;
   alt: string;
@@ -47,20 +49,30 @@ export function ListingImage({
   rounded?: "2xl" | "3xl" | "none";
   showGradient?: boolean;
   fillContainer?: boolean;
+  /** When false, show empty shell instead of category stock photo (e.g. list preview). */
+  fallbackToCategory?: boolean;
 }) {
   const primary = normalizeImageUrl(src.trim());
-  const [activeSrc, setActiveSrc] = useState(
-    primary || fallbackImageForCategory(category),
-  );
+  const resolved =
+    primary || (fallbackToCategory ? fallbackImageForCategory(category) : "");
+  const [activeSrc, setActiveSrc] = useState(resolved);
+
+  useEffect(() => {
+    const next =
+      normalizeImageUrl(src.trim()) ||
+      (fallbackToCategory ? fallbackImageForCategory(category) : "");
+    setActiveSrc(next);
+  }, [src, category, fallbackToCategory]);
 
   const onError = useCallback(() => {
+    if (!fallbackToCategory) return;
     setActiveSrc((current) => {
       const fallback = fallbackImageForCategory(category);
       return current === fallback ? current : fallback;
     });
-  }, [category]);
+  }, [category, fallbackToCategory]);
 
-  const useNextImage = isOptimizableImageUrl(activeSrc);
+  const useNextImage = Boolean(activeSrc) && isOptimizableImageUrl(activeSrc);
 
   const roundedClass =
     rounded === "none"
@@ -84,7 +96,13 @@ export function ListingImage({
 
   return (
     <div className={shellClass}>
-      {useNextImage ? (
+      {!activeSrc ? (
+        <div className="flex h-full min-h-[10rem] flex-col items-center justify-center gap-2 p-6 text-center text-muted">
+          <ImagePlus className="h-8 w-8 opacity-40" />
+          <p className="text-sm font-medium">No photo yet</p>
+          <p className="text-xs">Choose or take a photo below</p>
+        </div>
+      ) : useNextImage ? (
         <Image
           src={activeSrc}
           alt={alt}

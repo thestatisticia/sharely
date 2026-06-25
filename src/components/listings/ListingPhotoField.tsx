@@ -109,6 +109,7 @@ export function ListingPhotoField({
           aspect="wide"
           rounded="2xl"
           sizes="400px"
+          fallbackToCategory={false}
         />
         <div className="absolute bottom-3 right-3 z-10 rounded-full bg-surface/90 px-3 py-1 text-xs font-semibold shadow">
           {uploading ? (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Loader2, TrendingUp } from "lucide-react";
 
 import { useClientRentals } from "@/hooks/useClientRentals";
+import { useOwnerStats } from "@/hooks/useOwnerStats";
 import { computeOwnerEarnings } from "@/lib/earnings";
 import { formatG$ } from "@/lib/format";
 
@@ -12,11 +13,13 @@ export function EarningsCard({
 }: {
   address: `0x${string}` | undefined;
 }) {
-  const { rentals, loading } = useClientRentals(address);
+  const { rentals, loading: rentalsLoading } = useClientRentals(address);
+  const { stats, loading: statsLoading } = useOwnerStats(address);
 
   if (!address) return null;
 
-  const stats = computeOwnerEarnings(rentals, address);
+  const statsEarnings = computeOwnerEarnings(rentals, address);
+  const loading = rentalsLoading || statsLoading;
 
   return (
     <div className="surface space-y-4 p-5">
@@ -43,37 +46,44 @@ export function EarningsCard({
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl bg-surface-hover p-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Listed
+            </p>
+            <p className="mt-1 text-2xl font-extrabold text-foreground">
+              {stats.listingsCount}
+            </p>
+          </div>
           <div className="rounded-2xl bg-surface-hover p-3 text-center">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
               Active
             </p>
             <p className="mt-1 text-2xl font-extrabold text-foreground">
-              {stats.activeRentals}
+              {statsEarnings.activeRentals}
             </p>
           </div>
           <div className="rounded-2xl bg-surface-hover p-3 text-center">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Est. earning
+              Completed
             </p>
-            <p className="mt-1 text-xl font-extrabold text-primary">
-              {formatG$(stats.activeEstimatedG$)}
-              <span className="ml-0.5 text-xs font-semibold text-muted">G$</span>
+            <p className="mt-1 text-2xl font-extrabold text-foreground">
+              {stats.completedRentals}
             </p>
           </div>
           <div className="rounded-2xl bg-surface-hover p-3 text-center">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Total
+              Earned
             </p>
             <p className="mt-1 text-xl font-extrabold text-emerald-700">
-              {formatG$(stats.totalEarnedG$)}
+              {formatG$(statsEarnings.totalEarnedG$)}
               <span className="ml-0.5 text-xs font-semibold text-muted">G$</span>
             </p>
           </div>
         </div>
       )}
 
-      {!loading && stats.activeRentals === 0 && stats.completedRentals === 0 ? (
+      {!loading && stats.listingsCount === 0 && stats.completedRentals === 0 ? (
         <p className="text-center text-sm text-muted">
           List items on{" "}
           <Link href="/list" className="font-semibold text-primary">
