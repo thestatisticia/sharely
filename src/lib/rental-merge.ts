@@ -1,3 +1,8 @@
+import {
+  pickValidStreamStartedAt,
+  pickValidStreamStoppedAt,
+  sanitizeRentalStreamFields,
+} from "@/lib/rental-booking-stream";
 import type { Rental } from "@/lib/types";
 
 /** Merge browser-local rental patches into API results (server cannot read localStorage). */
@@ -8,69 +13,61 @@ export function mergeRentalsWithLocal(
   const localById = new Map(local.map((r) => [r.id, r]));
   const remoteIds = new Set(remote.map((r) => r.id));
 
-  const merged = remote.map((r) => overlayLocalRentalFields(r, localById.get(r.id)));
+  const merged = remote.map((r) =>
+    overlayLocalRentalFields(r, localById.get(r.id)),
+  );
   const localOnly = local.filter((r) => !remoteIds.has(r.id));
 
-  return [...merged, ...localOnly];
-}
-
-function localStreamBelongsToBooking(
-  local: Rental,
-  handoverAt: string,
-): boolean {
-  const handoverMs = new Date(handoverAt).getTime();
-  if (local.streamStoppedAt) {
-    return new Date(local.streamStoppedAt).getTime() >= handoverMs - 120_000;
-  }
-  if (local.streamStartedAt) {
-    return new Date(local.streamStartedAt).getTime() >= handoverMs - 120_000;
-  }
-  return false;
+  return [...merged, ...localOnly.map(sanitizeRentalStreamFields)];
 }
 
 function overlayLocalRentalFields(
   remote: Rental,
   local: Rental | undefined,
 ): Rental {
-  if (!local) return remote;
-
-  const handoverAt = remote.ownerHandoverAt ?? local.ownerHandoverAt;
-  const localStreamValid =
-    Boolean(handoverAt) && localStreamBelongsToBooking(local, handoverAt!);
-
-  const streamStarted = Boolean(
-    remote.streamStartedAt ||
-      (localStreamValid && (local.streamStartedAt || local.streamStoppedAt)),
+  const handoverAt = remote.ownerHandoverAt ?? local?.ownerHandoverAt;
+  const streamStartedAt = pickValidStreamStartedAt(remote, local);
+  const streamStoppedAt = pickValidStreamStoppedAt(
+    streamStartedAt,
+    remote,
+    local,
   );
 
-  if (!streamStarted && !handoverAt) return remote;
+  if (!streamStartedAt && !streamStoppedAt && !handoverAt) {
+    return sanitizeRentalStreamFields(remote);
+  }
 
-  return {
+  const streamStarted = Boolean(streamStartedAt || streamStoppedAt);
+  const localHasFreshStream =
+    Boolean(local?.streamStartedAt) &&
+    local!.streamStartedAt === streamStartedAt;
+
+  return sanitizeRentalStreamFields({
     ...remote,
     ownerHandoverAt: handoverAt,
-    flowTxHash: remote.flowTxHash ?? (localStreamValid ? local.flowTxHash : undefined),
-    streamStartedAt:
-      remote.streamStartedAt ??
-      (localStreamValid ? local.streamStartedAt : undefined),
-    streamStoppedAt:
-      remote.streamStoppedAt ??
-      (localStreamValid ? local.streamStoppedAt : undefined),
-    txHash: remote.txHash ?? (localStreamValid ? local.txHash : undefined),
+    streamStartedAt,
+    streamStoppedAt,
+    flowTxHash: streamStartedAt
+      ? (remote.flowTxHash ?? (localHasFreshStream ? local!.flowTxHash : undefined))
+      : undefined,
+    txHash: streamStartedAt
+      ? (remote.txHash ?? (localHasFreshStream ? local!.txHash : undefined))
+      : undefined,
     status:
       remote.status === "completed"
         ? "completed"
         : streamStarted
           ? "active"
           : remote.status,
-    startDate: remote.streamStartedAt
-      ? remote.startDate
-      : localStreamValid && local.streamStartedAt
-        ? (local.startDate ?? remote.startDate)
-        : remote.startDate,
-    endDate: remote.streamStartedAt
-      ? remote.endDate
-      : localStreamValid && local.streamStartedAt
-        ? (local.endDate ?? remote.endDate)
-        : remote.endDate,
-  };
+    startDate: streamStartedAt
+      ? localHasFreshStream
+        ? (local!.startDate ?? remote.startDate)
+        : remote.startDate
+      : remote.startDate,
+    endDate: streamStartedAt
+      ? localHasFreshStream
+        ? (local!.endDate ?? remote.endDate)
+        : remote.endDate
+      : remote.endDate,
+  });
 }

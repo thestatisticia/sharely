@@ -1,4 +1,9 @@
 import { formatShortDate } from "@/lib/format";
+import {
+  isStreamConfirmingOnChain,
+  streamStartedForCurrentBooking,
+  streamStoppedForCurrentBooking,
+} from "@/lib/rental-booking-stream";
 import type { Rental } from "@/lib/types";
 
 export function getAvailableAgainDate(rental: Rental): string | null {
@@ -45,13 +50,18 @@ export function getRenterRentalPhase(
     streamActive: boolean;
     hasRecordedStreamStart: boolean;
     depositReleased: boolean;
+    flowLoading: boolean;
   },
 ): RenterRentalPhase {
   if (chain.depositReleased) return "complete";
   if (isBookingCancelledBeforePickup(rental)) return "cancelled";
-  if (chain.streamActive) return "streaming";
-  if (rental.streamStoppedAt) return "payments_ended";
-  if (rental.streamStartedAt && !chain.streamActive) return "payments_ended";
+  if (chain.streamActive || isStreamConfirmingOnChain(rental, chain)) {
+    return "streaming";
+  }
+  if (streamStoppedForCurrentBooking(rental)) return "payments_ended";
+  if (streamStartedForCurrentBooking(rental) && !chain.streamActive) {
+    return "payments_ended";
+  }
   if (rental.ownerHandoverAt) return "ready_to_start";
   return "awaiting_pickup";
 }
@@ -62,13 +72,18 @@ export function getOwnerRentalPhase(
     streamActive: boolean;
     hasRecordedStreamStart: boolean;
     depositReleased: boolean;
+    flowLoading: boolean;
   },
 ): OwnerRentalPhase {
   if (chain.depositReleased) return "complete";
   if (isBookingCancelledBeforePickup(rental)) return "cancelled";
-  if (chain.streamActive) return "streaming";
-  if (rental.streamStoppedAt) return "awaiting_return";
-  if (rental.streamStartedAt && !chain.streamActive) return "awaiting_return";
+  if (chain.streamActive || isStreamConfirmingOnChain(rental, chain)) {
+    return "streaming";
+  }
+  if (streamStoppedForCurrentBooking(rental)) return "awaiting_return";
+  if (streamStartedForCurrentBooking(rental) && !chain.streamActive) {
+    return "awaiting_return";
+  }
   if (!rental.ownerHandoverAt) return "awaiting_handover";
   return "awaiting_renter_stream";
 }
@@ -94,7 +109,7 @@ export function needsOwnerReturnConfirm(
   if (!wallet) return false;
   return (
     rental.ownerAddress.toLowerCase() === wallet.toLowerCase() &&
-    Boolean(rental.streamStoppedAt) &&
+    Boolean(streamStoppedForCurrentBooking(rental)) &&
     rental.status !== "completed"
   );
 }

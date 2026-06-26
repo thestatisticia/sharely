@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { useStartRentalStream } from "@/hooks/useStartRentalStream";
 import { useSyncRentalStreamFromChain } from "@/hooks/useSyncRentalStreamFromChain";
 import { formatG$ } from "@/lib/format";
+import { isStreamConfirmingOnChain, streamStartedForCurrentBooking } from "@/lib/rental-booking-stream";
 import type { Rental } from "@/lib/types";
 
 export function RenterActionRequired({
@@ -24,7 +25,9 @@ export function RenterActionRequired({
   const [error, setError] = useState<string | null>(null);
 
   const streamLive =
-    chain.streamActive || Boolean(rental.streamStartedAt);
+    chain.streamActive ||
+    isStreamConfirmingOnChain(rental, chain) ||
+    streamStartedForCurrentBooking(rental);
 
   async function handleStartStream() {
     if (!chain.hasEscrow) return;

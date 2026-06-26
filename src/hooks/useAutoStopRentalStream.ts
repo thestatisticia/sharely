@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { CELO_CHAIN_ID } from "@/lib/contracts";
+import {
+  MIN_STREAM_RUNTIME_MS,
+  streamStartIsoForCap,
+} from "@/lib/rental-booking-stream";
 import { deleteFlowArgs, rentalDailyRate } from "@/lib/rental-stream";
 import { flowRateMatchesRental } from "@/lib/rental-stream-state";
 import { patchRental } from "@/lib/rentals-api";
@@ -22,11 +26,13 @@ export function useAutoStopRentalStream(
   {
     streamActive,
     flowRate,
+    flowLastUpdated,
     onRefetch,
     onUpdated,
   }: {
     streamActive: boolean;
     flowRate: bigint | undefined;
+    flowLastUpdated: bigint | undefined;
     onRefetch: () => Promise<void>;
     onUpdated: () => void | Promise<void>;
   },
@@ -43,7 +49,7 @@ export function useAutoStopRentalStream(
     address &&
     rental.renterAddress.toLowerCase() === address.toLowerCase();
 
-  const streamStartIso = rental.streamStartedAt;
+  const streamStartIso = streamStartIsoForCap(rental, flowLastUpdated);
   const dailyRate = rentalDailyRate(rental);
 
   const stopStream = useCallback(async () => {
@@ -94,6 +100,8 @@ export function useAutoStopRentalStream(
 
     const evaluate = () => {
       if (!flowRateMatchesRental(flowRate, dailyRate)) return;
+      const startMs = new Date(streamStartIso).getTime();
+      if (Date.now() - startMs < MIN_STREAM_RUNTIME_MS) return;
       const reached = hasReachedRentalPaymentCap(
         flowRate,
         streamStartIso,
@@ -118,6 +126,7 @@ export function useAutoStopRentalStream(
     stopStream,
     streamActive,
     streamStartIso,
+    flowLastUpdated,
   ]);
 
   return { stopping, paymentCapReached, stopStream };

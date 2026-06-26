@@ -2,7 +2,7 @@ import { parseG$ } from "./format";
 
 const SECONDS_PER_DAY = BigInt(86_400);
 
-/** G$ per second for a given daily rate (18 decimals). */
+/** G$ per second for a given daily rate (18 decimals). Streams continuously — not once per day. */
 export function dailyRateToFlowRate(dailyRateG$: number): bigint {
   const dailyWei = parseG$(dailyRateG$);
   return dailyWei / SECONDS_PER_DAY;

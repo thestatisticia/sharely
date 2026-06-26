@@ -1,4 +1,5 @@
 import { dailyRateToFlowRate } from "@/lib/superfluid";
+import { streamStartedForCurrentBooking } from "@/lib/rental-booking-stream";
 import { rentalDailyRate } from "@/lib/rental-stream";
 import type { Rental } from "@/lib/types";
 
@@ -7,7 +8,11 @@ export function flowRateMatchesRental(
   dailyRateG$: number,
 ): boolean {
   if (flowRate === undefined || flowRate <= BigInt(0)) return false;
-  return flowRate === dailyRateToFlowRate(dailyRateG$);
+  const expected = dailyRateToFlowRate(dailyRateG$);
+  if (flowRate === expected) return true;
+  const diff =
+    flowRate > expected ? flowRate - expected : expected - flowRate;
+  return diff <= expected / BigInt(10_000) || diff <= BigInt(1);
 }
 
 /** Flow must have been created/updated at or after owner handover for this booking. */
@@ -21,7 +26,7 @@ export function flowStartedAfterHandover(
 }
 
 export function hasRecordedStreamStart(rental: Rental): boolean {
-  return Boolean(rental.streamStartedAt);
+  return streamStartedForCurrentBooking(rental);
 }
 
 export function isStreamActiveForRental(

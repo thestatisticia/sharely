@@ -1,4 +1,5 @@
 import type { Rental } from "@/lib/types";
+import { streamStartedForCurrentBooking } from "@/lib/rental-booking-stream";
 
 export type RentalProgress = {
   phase: "pending" | "streaming" | "stopped" | "complete";
@@ -16,7 +17,7 @@ export function getRentalProgress(
 ): RentalProgress {
   const totalRentalG$ = rental.dailyRateG$ * rental.days;
   const daysTotal = rental.days;
-  const streamStarted = Boolean(rental.streamStartedAt);
+  const streamStarted = streamStartedForCurrentBooking(rental);
 
   if (!streamStarted) {
     return {

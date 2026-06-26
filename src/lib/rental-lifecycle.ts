@@ -1,3 +1,4 @@
+import { streamStartedForCurrentBooking } from "@/lib/rental-booking-stream";
 import type { Rental } from "@/lib/types";
 
 export type RentalLifecycle =
@@ -14,7 +15,7 @@ export function getRentalLifecycle(
   depositReleased: boolean,
 ): RentalLifecycle {
   if (depositReleased || rental.status === "completed") return "completed";
-  if (streamActive || rental.streamStartedAt) return "active";
+  if (streamActive || streamStartedForCurrentBooking(rental)) return "active";
   if (rental.ownerHandoverAt) return "delivered";
   if (rental.status === "pending" || rental.bookingId) return "booked";
   return "booked";

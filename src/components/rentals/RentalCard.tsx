@@ -16,7 +16,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAutoStopRentalStream } from "@/hooks/useAutoStopRentalStream";
-import { useRentalOnChain } from "@/hooks/useRentalOnChain";
+import { useSyncRentalStreamFromChain } from "@/hooks/useSyncRentalStreamFromChain";
 import { useStartRentalStream } from "@/hooks/useStartRentalStream";
 import {
   ESCROW_ADDRESS,
@@ -28,6 +28,7 @@ import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
 import { canRenterCancelBeforePickup, getOwnerRentalPhase, getRenterRentalPhase } from "@/lib/renter-action";
+import { isStreamConfirmingOnChain } from "@/lib/rental-booking-stream";
 import type { Rental } from "@/lib/types";
 import {
   formatWalletTxError,
@@ -78,11 +79,12 @@ export function RentalCard({
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const { signMessageAsync } = useSignMessage();
-  const chain = useRentalOnChain(rental);
+  const chain = useSyncRentalStreamFromChain(rental, onUpdated);
   const { startStream, formatError: formatStreamError } = useStartRentalStream(rental);
   const autoStop = useAutoStopRentalStream(rental, {
     streamActive: chain.streamActive,
     flowRate: chain.flowRate,
+    flowLastUpdated: chain.flowLastUpdated,
     onRefetch: chain.refetch,
     onUpdated,
   });
@@ -126,6 +128,8 @@ export function RentalCard({
   const canCancelBeforePickup = canRenterCancelBeforePickup(rental, address);
 
   const canRenterStartStream = renterPhase === "ready_to_start";
+  const streamConfirming =
+    isStreamConfirmingOnChain(rental, chain) && renterPhase === "streaming";
 
   useEffect(() => {
     if (chain.isComplete && rental.status !== "completed") {
@@ -452,6 +456,20 @@ export function RentalCard({
             This booking was cancelled before pickup. The item is listed again.
             Your deposit stays in escrow until the claim date below unless the
             owner confirms a return.
+          </p>
+        </div>
+      ) : null}
+
+      {isRenter && streamConfirming ? (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
+          <p className="inline-flex items-center gap-1.5 font-semibold">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Starting payment stream…
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Waiting for Celo to confirm your stream. This usually takes a few
+            seconds — G$ flows continuously at {formatG$(dailyRate)}/day until
+            the rental total is paid.
           </p>
         </div>
       ) : null}
