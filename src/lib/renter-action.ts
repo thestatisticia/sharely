@@ -14,6 +14,21 @@ export function getAvailableAgainDate(rental: Rental): string | null {
   return null;
 }
 
+export function canRenterCancelBeforePickup(
+  rental: Rental,
+  wallet: string | undefined,
+): boolean {
+  if (!wallet) return false;
+  return (
+    rental.renterAddress.toLowerCase() === wallet.toLowerCase() &&
+    Boolean(rental.bookingId) &&
+    !rental.ownerHandoverAt &&
+    !rental.flowTxHash &&
+    !rental.streamStartedAt &&
+    rental.status !== "completed"
+  );
+}
+
 export function needsRenterAction(
   rental: Rental,
   wallet: string | undefined,

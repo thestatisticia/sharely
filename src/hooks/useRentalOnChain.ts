@@ -10,6 +10,11 @@ import {
   escrowAbi,
 } from "@/lib/contracts";
 import type { Rental } from "@/lib/types";
+import {
+  canSyncStreamFromChain,
+  hasRecordedStreamStart,
+  isStreamActiveForRental,
+} from "@/lib/rental-stream-state";
 
 type DepositLock = readonly [
   `0x${string}`,
@@ -56,16 +61,16 @@ export function useRentalOnChain(rental: Rental) {
   const deposit = depositData as DepositLock | undefined;
   const depositReleased = deposit?.[5] ?? false;
   const claimableAfterSec = deposit?.[4] ? Number(deposit[4]) : undefined;
+  const flowLastUpdated = flowInfo?.[0] as bigint | undefined;
   const flowRate = flowInfo?.[1] as bigint | undefined;
   const onChainFlowActive =
     flowRate !== undefined && flowRate > BigInt(0);
-  /** Stream counts once recorded in-app or live on-chain after owner handover. */
-  const streamStartedForRental = Boolean(
-    rental.flowTxHash ||
-      rental.streamStartedAt ||
-      (onChainFlowActive && rental.ownerHandoverAt),
+  const streamActive = isStreamActiveForRental(
+    rental,
+    onChainFlowActive,
+    flowRate,
+    flowLastUpdated,
   );
-  const streamActive = onChainFlowActive && streamStartedForRental;
 
   const canClaimDeposit =
     hasEscrow &&
@@ -88,6 +93,9 @@ export function useRentalOnChain(rental: Rental) {
     depositReleased,
     onChainFlowActive,
     streamActive,
+    hasRecordedStreamStart: hasRecordedStreamStart(rental),
+    flowRate,
+    flowLastUpdated,
     canClaimDeposit,
     claimableAfterDate,
     isComplete,

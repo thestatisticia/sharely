@@ -21,13 +21,11 @@ export function RenterActionRequired({
   });
   const { startStream } = useStartRentalStream(rental);
   const [busy, setBusy] = useState(false);
-  const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const streamLive =
-    completed ||
-    Boolean(rental.flowTxHash || rental.streamStartedAt) ||
-    (chain.onChainFlowActive && Boolean(rental.ownerHandoverAt));
+    chain.streamActive ||
+    Boolean(rental.flowTxHash || rental.streamStartedAt);
 
   async function handleStartStream() {
     if (!chain.hasEscrow) return;
@@ -35,7 +33,6 @@ export function RenterActionRequired({
     setError(null);
     try {
       await startStream();
-      setCompleted(true);
       await chain.refetch();
       await onUpdated();
     } catch (err) {

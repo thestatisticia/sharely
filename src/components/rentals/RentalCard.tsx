@@ -28,9 +28,10 @@ import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
+import { canRenterCancelBeforePickup } from "@/lib/renter-action";
 import type { Rental } from "@/lib/types";
 
-type Action = "confirm" | "stop" | "claim" | "start" | "handover" | null;
+type Action = "confirm" | "stop" | "claim" | "start" | "handover" | "cancel" | null;
 
 function StreamProgress({
   progress,
@@ -99,10 +100,15 @@ export function RentalCard({
 
   const awaitingStreamStart =
     Boolean(rental.bookingId) &&
-    !rental.flowTxHash &&
-    !rental.streamStartedAt &&
+    !chain.hasRecordedStreamStart &&
     !chain.streamActive &&
     !chain.depositReleased;
+
+  const canCancelBeforePickup = canRenterCancelBeforePickup(rental, address);
+  const strayOnChainFlow =
+    chain.onChainFlowActive &&
+    !chain.streamActive &&
+    Boolean(rental.ownerHandoverAt);
 
   const canRenterStartStream =
     awaitingStreamStart && Boolean(rental.ownerHandoverAt);
@@ -176,6 +182,28 @@ export function RentalCard({
       } else {
         setError(message);
       }
+    } finally {
+      setAction(null);
+    }
+  }
+
+  async function handleCancelBooking() {
+    if (!address || !canCancelBeforePickup) return;
+    setAction("cancel");
+    setError(null);
+    try {
+      await patchRental(
+        rental.id,
+        { status: "completed" },
+        {
+          listingId: rental.listingId,
+          relistOnComplete: true,
+          ownerAddress: rental.ownerAddress,
+        },
+      );
+      await onUpdated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not cancel booking");
     } finally {
       setAction(null);
     }
@@ -380,6 +408,38 @@ export function RentalCard({
             Your deposit is locked. The owner must confirm they handed over the
             item before you can start the payment stream.
           </p>
+          {canCancelBeforePickup ? (
+            <Button
+              fullWidth
+              variant="secondary"
+              className="mt-3"
+              size="sm"
+              onClick={() => void handleCancelBooking()}
+              disabled={busy}
+            >
+              {action === "cancel" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              Cancel booking
+            </Button>
+          ) : null}
+          {canCancelBeforePickup ? (
+            <p className="mt-2 text-xs">
+              Cancelling re-lists the item. Your deposit stays in escrow until the
+              claim date below if the owner never delivers.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isRenter && strayOnChainFlow ? (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
+          <p className="font-semibold">Stream not linked to this booking</p>
+          <p className="mt-1 text-xs">
+            A G$ stream exists between you and this owner on-chain, but it does
+            not match this rental. Finish starting the rental below, or check for
+            an older stream in your wallet history.
+          </p>
         </div>
       ) : null}
 
@@ -446,10 +506,18 @@ export function RentalCard({
 
       {isRenter ? (
         <div className="space-y-2">
-          {chain.streamActive ? (
+          {chain.streamActive && !chain.depositReleased ? (
+            <p className="text-sm text-muted">
+              Payments stream to the owner while you use the item. Return it when
+              finished — the owner confirms return to release your deposit.
+            </p>
+          ) : null}
+
+          {chain.streamActive && chain.depositReleased ? (
             <>
               <p className="text-sm text-muted">
-                Finished early? Stop the stream to end daily payments.
+                Return confirmed and deposit released. Stop the payment stream to
+                end daily charges.
               </p>
               <Button
                 fullWidth
@@ -460,7 +528,7 @@ export function RentalCard({
                 {action === "stop" && (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 )}
-                Stop rental stream
+                Stop payment stream
               </Button>
             </>
           ) : null}

@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react";
 
 import { useRentalOnChain } from "@/hooks/useRentalOnChain";
 import { patchRental } from "@/lib/rentals-api";
+import { canSyncStreamFromChain } from "@/lib/rental-stream-state";
 import type { Rental } from "@/lib/types";
 
-/** When the stream is live on-chain but the DB row is stale, sync and refresh. */
+/** When the stream is live on-chain for this booking but the DB row is stale, sync once. */
 export function useSyncRentalStreamFromChain(
   rental: Rental,
   onUpdated: () => void,
@@ -15,10 +16,17 @@ export function useSyncRentalStreamFromChain(
   const syncing = useRef(false);
 
   useEffect(() => {
-    if (syncing.current) return;
-    if (!rental.bookingId || !rental.ownerHandoverAt) return;
-    if (rental.flowTxHash || rental.streamStartedAt) return;
-    if (!chain.onChainFlowActive || chain.flowLoading) return;
+    if (syncing.current || chain.flowLoading) return;
+    if (
+      !canSyncStreamFromChain(
+        rental,
+        chain.onChainFlowActive,
+        chain.flowRate,
+        chain.flowLastUpdated,
+      )
+    ) {
+      return;
+    }
 
     syncing.current = true;
     const now = new Date();
@@ -37,13 +45,10 @@ export function useSyncRentalStreamFromChain(
         syncing.current = false;
       });
   }, [
-    rental.id,
-    rental.bookingId,
-    rental.ownerHandoverAt,
-    rental.flowTxHash,
-    rental.streamStartedAt,
-    rental.days,
+    rental,
     chain.onChainFlowActive,
+    chain.flowRate,
+    chain.flowLastUpdated,
     chain.flowLoading,
     onUpdated,
   ]);
