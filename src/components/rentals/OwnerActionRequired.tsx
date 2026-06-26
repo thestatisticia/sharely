@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount } from "wagmi";
 import { AlertTriangle, Loader2, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
+import { useWalletSession } from "@/hooks/useWalletSession";
 import { buildOwnerHandoverPatch } from "@/lib/handover-patch";
 import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
-import { buildHandoverSignMessage } from "@/lib/rental-sign";
 import { needsOwnerHandover } from "@/lib/renter-action";
 import type { Rental } from "@/lib/types";
 
@@ -20,7 +20,7 @@ export function OwnerActionRequired({
   onUpdated: () => void | Promise<void>;
 }) {
   const { address } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { ensureSession } = useWalletSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,17 +31,15 @@ export function OwnerActionRequired({
     setBusy(true);
     setError(null);
     try {
+      await ensureSession();
       const now = new Date().toISOString();
-      await signMessageAsync({
-        message: buildHandoverSignMessage(rental, now),
-      });
       await patchRental(rental.id, buildOwnerHandoverPatch(now));
       await onUpdated();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not record handover";
       if (message.toLowerCase().includes("reject")) {
-        setError("Signature cancelled. Approve in MetaMask to confirm delivery.");
+        setError("Sign-in cancelled. Complete wallet sign-in to confirm delivery.");
       } else {
         setError(message);
       }
@@ -83,7 +81,7 @@ export function OwnerActionRequired({
       >
         {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
         <Package className="h-5 w-5" />
-        {busy ? "Confirm in MetaMask…" : "I've delivered the item"}
+        {busy ? "Confirming…" : "I've delivered the item"}
       </Button>
 
       {error ? (

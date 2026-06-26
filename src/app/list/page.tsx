@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useSignMessage } from "wagmi";
 
 import { ListingPhotoField } from "@/components/listings/ListingPhotoField";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +10,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/Field";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { VerificationBadge } from "@/components/wallet/VerificationBadge";
 import { useWalletModal } from "@/components/wallet/WalletModal";
+import { useWalletSession } from "@/hooks/useWalletSession";
 import { useVerificationState } from "@/hooks/useGoodDollar";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/categories";
 import {
@@ -18,7 +18,6 @@ import {
   normalizeImageUrl,
 } from "@/lib/imageUrl";
 import { KAMPALA_AREAS, formatKampalaLocation } from "@/lib/kampala";
-import { buildListingSignMessage } from "@/lib/listing-sign";
 import { createListing } from "@/lib/listings-api";
 import { recommendedDeposits } from "@/lib/deposit-recommendations";
 import { createId } from "@/lib/store";
@@ -29,7 +28,7 @@ import { Page, PageHero, Surface } from "@/components/layout/Page";
 export default function ListPage() {
   const router = useRouter();
   const { openModal } = useWalletModal();
-  const { signMessageAsync } = useSignMessage();
+  const { ensureSession } = useWalletSession();
   const {
     address,
     isConnected,
@@ -123,9 +122,7 @@ export default function ListPage() {
 
     try {
       setPublishing(true);
-      await signMessageAsync({
-        message: buildListingSignMessage(listing),
-      });
+      await ensureSession();
       await createListing(listing);
       router.push(`/item/${listing.id}`);
     } catch (err) {
@@ -133,7 +130,7 @@ export default function ListPage() {
       const message =
         err instanceof Error ? err.message : "Could not save listing.";
       if (message.toLowerCase().includes("reject")) {
-        setError("Signature cancelled. Approve in MetaMask to publish.");
+        setError("Sign-in cancelled. Connect wallet and complete sign-in to publish.");
       } else {
         setError(message);
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, usePublicClient, useSignMessage, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import {
   CheckCircle2,
   Clock,
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { useAutoStopRentalStream } from "@/hooks/useAutoStopRentalStream";
 import { useSyncRentalStreamFromChain } from "@/hooks/useSyncRentalStreamFromChain";
 import { useStartRentalStream } from "@/hooks/useStartRentalStream";
+import { useWalletSession } from "@/hooks/useWalletSession";
 import {
   CELO_CHAIN_ID,
   ESCROW_ADDRESS,
@@ -27,7 +28,6 @@ import { formatG$, shortenAddress } from "@/lib/format";
 import { buildOwnerHandoverPatch } from "@/lib/handover-patch";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
-import { buildHandoverSignMessage } from "@/lib/rental-sign";
 import { canRenterCancelBeforePickup, getOwnerRentalPhase, getRenterRentalPhase } from "@/lib/renter-action";
 import {
   isStreamConfirmingOnChain,
@@ -83,7 +83,7 @@ export function RentalCard({
   const { address } = useAccount();
   const publicClient = usePublicClient({ chainId: CELO_CHAIN_ID });
   const { writeContractAsync } = useWriteContract();
-  const { signMessageAsync } = useSignMessage();
+  const { ensureSession } = useWalletSession();
   const chain = useSyncRentalStreamFromChain(rental, onUpdated);
   const { startStream, formatError: formatStreamError } = useStartRentalStream(rental);
   const autoStop = useAutoStopRentalStream(rental, {
@@ -167,16 +167,14 @@ export function RentalCard({
     setAction("handover");
     setError(null);
     try {
+      await ensureSession();
       const now = new Date().toISOString();
-      await signMessageAsync({
-        message: buildHandoverSignMessage(rental, now),
-      });
       await patchRental(rental.id, buildOwnerHandoverPatch(now));
       onUpdated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not record handover";
       if (message.toLowerCase().includes("reject")) {
-        setError("Signature cancelled. Approve in MetaMask to confirm delivery.");
+        setError("Sign-in cancelled. Complete wallet sign-in to confirm delivery.");
       } else {
         setError(message);
       }

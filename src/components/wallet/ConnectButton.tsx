@@ -1,14 +1,15 @@
 "use client";
 
 import { Wallet } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
 
 import { Button } from "@/components/ui/Button";
 import { useWalletModal } from "@/components/wallet/WalletModal";
-import { CELO_CHAIN_ID } from "@/lib/contracts";
 import { shortenAddress } from "@/lib/format";
+import { connectInjectedWallet } from "@/lib/wallet-connect";
 import { getInjectedConnector, hasBrowserWallet } from "@/lib/wallet";
+import { useWalletSession } from "@/hooks/useWalletSession";
 
 export function ConnectButton({
   compact = false,
@@ -18,22 +19,32 @@ export function ConnectButton({
   fullWidth?: boolean;
 }) {
   const { address, isConnected } = useAccount();
-  const { connectors, connect, isPending } = useConnect();
+  const { connectors, connectAsync, isPending } = useConnect();
   const { openModal } = useWalletModal();
+  const { ensureSession } = useWalletSession();
+  const [busy, setBusy] = useState(false);
   const injected = getInjectedConnector(connectors);
 
-  const handleConnect = useCallback(() => {
+  const handleConnect = useCallback(async () => {
     if (!hasBrowserWallet() || !injected) {
       openModal();
       return;
     }
-    connect(
-      { connector: injected, chainId: CELO_CHAIN_ID },
-      {
-        onError: () => openModal(),
-      },
-    );
-  }, [connect, injected, openModal]);
+
+    setBusy(true);
+    try {
+      await connectInjectedWallet({
+        connectAsync,
+        connector: injected,
+        isConnected,
+      });
+      await ensureSession();
+    } catch {
+      openModal();
+    } finally {
+      setBusy(false);
+    }
+  }, [connectAsync, ensureSession, injected, isConnected, openModal]);
 
   if (isConnected && address) {
     return (
@@ -49,17 +60,19 @@ export function ConnectButton({
     );
   }
 
+  const pending = isPending || busy;
+
   return (
     <Button
       fullWidth={fullWidth}
       size={compact ? "sm" : "md"}
       variant={compact ? "gradient" : "primary"}
-      onClick={handleConnect}
-      disabled={isPending}
+      onClick={() => void handleConnect()}
+      disabled={pending}
       aria-label="Connect wallet"
     >
       <Wallet className="h-4 w-4" />
-      {isPending
+      {pending
         ? "Opening wallet..."
         : compact
           ? "Connect"

@@ -11,6 +11,7 @@ import { Loader2, Shield, Waves } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { VerificationGate } from "@/components/wallet/Verification";
+import { useWalletSession } from "@/hooks/useWalletSession";
 import { useGBalance, useVerificationState } from "@/hooks/useGoodDollar";
 import { createBookingId } from "@/lib/booking";
 import {
@@ -50,6 +51,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
   const { address, chainId } = useAccount();
   const publicClient = usePublicClient({ chainId: CELO_CHAIN_ID });
   const verification = useVerificationState();
+  const { ensureSession } = useWalletSession();
   const { balance, refetch: refetchBalance } = useGBalance();
   const [days, setDays] = useState(2);
   const [step, setStep] = useState<RentStep>("idle");
@@ -146,6 +148,8 @@ export function RentPanel({ listing }: { listing: Listing }) {
     const bookingId = createBookingId(listing.id, address, listing.ownerAddress);
 
     try {
+      await ensureSession();
+
       const existingRentals = await fetchRentalsForWallet(address);
       if (hasActiveRentalWithOwner(existingRentals, address, listing.ownerAddress)) {
         setError(

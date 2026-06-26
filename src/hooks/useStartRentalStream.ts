@@ -5,13 +5,12 @@ import {
   useAccount,
   useBalance,
   usePublicClient,
-  useSignMessage,
   useWriteContract,
 } from "wagmi";
 
+import { useWalletSession } from "@/hooks/useWalletSession";
 import { CELO_CHAIN_ID } from "@/lib/contracts";
 import { patchRental } from "@/lib/rentals-api";
-import { buildStreamStartSignMessage } from "@/lib/rental-sign";
 import { flowStartedAfterHandover } from "@/lib/rental-stream-state";
 import {
   createFlowArgs,
@@ -55,11 +54,13 @@ export function useStartRentalStream(rental: Rental) {
     chainId: CELO_CHAIN_ID,
   });
   const { writeContractAsync } = useWriteContract();
-  const { signMessageAsync } = useSignMessage();
+  const { ensureSession } = useWalletSession();
 
   const startStream = useCallback(async () => {
     if (!address) throw new Error("Connect your wallet on Celo.");
     if (!publicClient) throw new Error("No RPC client for Celo.");
+
+    await ensureSession();
 
     if (gBalance === undefined) {
       throw new Error("Could not read your G$ balance. Try again.");
@@ -92,11 +93,6 @@ export function useStartRentalStream(rental: Rental) {
       await refetchGBalance();
       return null;
     }
-
-    const attestAt = new Date().toISOString();
-    await signMessageAsync({
-      message: buildStreamStartSignMessage(rental, attestAt),
-    });
 
     if (plan === "replace") {
       const deleteHash = await writeContractFresh(
@@ -134,7 +130,7 @@ export function useStartRentalStream(rental: Rental) {
     publicClient,
     rental,
     refetchGBalance,
-    signMessageAsync,
+    ensureSession,
     writeContractAsync,
   ]);
 
