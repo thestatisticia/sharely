@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useRentalOnChain } from "@/hooks/useRentalOnChain";
+import { useStartRentalStream } from "@/hooks/useStartRentalStream";
 import {
   CFA_FORWARDER_ADDRESS,
   ESCROW_ADDRESS,
@@ -26,11 +27,7 @@ import {
 import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
-import {
-  buildHandoverSignMessage,
-  buildStreamStartSignMessage,
-} from "@/lib/rental-sign";
-import { dailyRateToFlowRate } from "@/lib/superfluid";
+import { buildHandoverSignMessage } from "@/lib/rental-sign";
 import type { Rental } from "@/lib/types";
 
 type Action = "confirm" | "stop" | "claim" | "start" | "handover" | null;
@@ -77,6 +74,7 @@ export function RentalCard({
   const { writeContractAsync } = useWriteContract();
   const { signMessageAsync } = useSignMessage();
   const chain = useRentalOnChain(rental);
+  const { startStream } = useStartRentalStream(rental);
 
   const [action, setAction] = useState<Action>(null);
   const [error, setError] = useState<string | null>(null);
@@ -166,44 +164,15 @@ export function RentalCard({
     setAction("start");
     setError(null);
     try {
-      const now = new Date().toISOString();
-      await signMessageAsync({
-        message: buildStreamStartSignMessage(rental, now),
-      });
-
-      const flowRate = dailyRateToFlowRate(dailyRate);
-      const hash = await writeContractAsync({
-        address: CFA_FORWARDER_ADDRESS,
-        abi: cfaForwarderAbi,
-        functionName: "createFlow",
-        args: [
-          G_DOLLAR_TOKEN_ADDRESS,
-          address,
-          rental.ownerAddress,
-          flowRate,
-          "0x",
-        ],
-      });
-      await waitTx(hash);
-
-      const started = new Date();
-      const end = new Date(started);
-      end.setDate(end.getDate() + rental.days);
-
-      await patchRental(rental.id, {
-        status: "active",
-        flowTxHash: hash,
-        txHash: hash,
-        streamStartedAt: started.toISOString(),
-        startDate: started.toISOString(),
-        endDate: end.toISOString(),
-      });
+      await startStream();
       await chain.refetch();
       onUpdated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start stream";
       if (message.toLowerCase().includes("reject")) {
-        setError("Transaction cancelled. Approve both steps in MetaMask to start the stream.");
+        setError(
+          "Cancelled in MetaMask. Step 1 is a free signature; step 2 is the stream transaction (uses CELO for gas).",
+        );
       } else {
         setError(message);
       }
@@ -433,8 +402,8 @@ export function RentalCard({
       {isRenter && canRenterStartStream && chain.hasEscrow ? (
         <div className="space-y-2">
           <p className="text-sm text-muted">
-            Received the item? MetaMask will ask you to sign, then approve the
-            payment stream.
+            Received the item? MetaMask will ask twice: first a free signature,
+            then a transaction that uses a small amount of CELO for gas.
           </p>
           <Button
             fullWidth

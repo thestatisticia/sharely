@@ -1,20 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, usePublicClient, useSignMessage, useWriteContract } from "wagmi";
 import { AlertTriangle, Loader2, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { useRentalOnChain } from "@/hooks/useRentalOnChain";
-import {
-  CFA_FORWARDER_ADDRESS,
-  G_DOLLAR_TOKEN_ADDRESS,
-  cfaForwarderAbi,
-} from "@/lib/contracts";
+import { useStartRentalStream } from "@/hooks/useStartRentalStream";
 import { formatG$ } from "@/lib/format";
-import { patchRental } from "@/lib/rentals-api";
-import { buildStreamStartSignMessage } from "@/lib/rental-sign";
-import { dailyRateToFlowRate } from "@/lib/superfluid";
 import type { Rental } from "@/lib/types";
 
 export function RenterActionRequired({
@@ -24,62 +16,25 @@ export function RenterActionRequired({
   rental: Rental;
   onUpdated: () => void;
 }) {
-  const { address } = useAccount();
-  const publicClient = usePublicClient();
-  const { writeContractAsync } = useWriteContract();
-  const { signMessageAsync } = useSignMessage();
   const chain = useRentalOnChain(rental);
+  const { startStream } = useStartRentalStream(rental);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const dailyRate =
-    rental.dailyRateG$ ??
-    Math.round((rental.totalG$ - rental.depositG$) / Math.max(rental.days, 1));
-
   async function handleStartStream() {
-    if (!address || !chain.hasEscrow) return;
+    if (!chain.hasEscrow) return;
     setBusy(true);
     setError(null);
     try {
-      const attestAt = new Date().toISOString();
-      await signMessageAsync({
-        message: buildStreamStartSignMessage(rental, attestAt),
-      });
-
-      const flowRate = dailyRateToFlowRate(dailyRate);
-      const hash = await writeContractAsync({
-        address: CFA_FORWARDER_ADDRESS,
-        abi: cfaForwarderAbi,
-        functionName: "createFlow",
-        args: [
-          G_DOLLAR_TOKEN_ADDRESS,
-          address,
-          rental.ownerAddress,
-          flowRate,
-          "0x",
-        ],
-      });
-      if (!publicClient) throw new Error("No RPC client");
-      await publicClient.waitForTransactionReceipt({ hash });
-
-      const now = new Date();
-      const end = new Date(now);
-      end.setDate(end.getDate() + rental.days);
-
-      await patchRental(rental.id, {
-        status: "active",
-        flowTxHash: hash,
-        txHash: hash,
-        streamStartedAt: now.toISOString(),
-        startDate: now.toISOString(),
-        endDate: end.toISOString(),
-      });
+      await startStream();
       await chain.refetch();
       onUpdated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start stream";
       if (message.toLowerCase().includes("reject")) {
-        setError("Cancelled in MetaMask. Approve the signature, then the stream transaction.");
+        setError(
+          "Cancelled in MetaMask. Step 1 is a free signature; step 2 is the stream transaction (uses CELO for gas).",
+        );
       } else {
         setError(message);
       }
@@ -110,6 +65,11 @@ export function RenterActionRequired({
             The owner confirmed delivery. You must start the G$ payment stream now
             — your {formatG$(rental.depositG$)} G$ deposit stays locked until the
             rental ends.
+          </p>
+          <p className="mt-2 text-xs text-red-800 dark:text-red-200">
+            MetaMask will prompt twice: a free signature, then a transaction that
+            uses CELO for gas. Keep enough G$ in your wallet for rental payments
+            (separate from the escrow deposit).
           </p>
         </div>
       </div>

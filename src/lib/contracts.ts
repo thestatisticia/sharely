@@ -42,5 +42,5 @@ export const cfaForwarderAbi = parseAbi([
   "function createFlow(address token, address sender, address receiver, int96 flowRate, bytes userData) returns (bool)",
   "function deleteFlow(address token, address sender, address receiver, bytes userData) returns (bool)",
   "function getFlowInfo(address token, address sender, address receiver) view returns (uint256 timestamp, int96 flowRate, uint256 deposit, uint256 owedDeposit)",
-  "function getBufferAmountByFlowrate(address token, int96 flowRate) view returns (uint256 deposit, uint256 owedDeposit)",
+  "function getBufferAmountByFlowrate(address token, int96 flowRate) view returns (uint256 bufferAmount)",
 ]);
