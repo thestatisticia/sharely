@@ -7,7 +7,6 @@ import {
   rentalPatchToRow,
   rowToRental,
 } from "@/lib/supabase/server";
-import { updateRental as updateLocalRental } from "@/lib/store";
 import type { Rental } from "@/lib/types";
 
 export async function PATCH(
@@ -16,8 +15,6 @@ export async function PATCH(
 ) {
   const { id } = await context.params;
   const patch = (await request.json()) as Partial<Rental>;
-
-  updateLocalRental(id, patch);
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ ok: true });

@@ -18,6 +18,7 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 function writeJson<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
   localStorage.setItem(key, JSON.stringify(value));
 }
 
