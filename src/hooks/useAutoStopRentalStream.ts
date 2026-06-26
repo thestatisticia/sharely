@@ -54,7 +54,7 @@ export function useAutoStopRentalStream(
 
   const stopStream = useCallback(async () => {
     if (!address || !publicClient || !isRenter || stoppingRef.current) return false;
-    if (!flowRate || !flowRateMatchesRental(flowRate, dailyRate)) return false;
+    if (!streamActive) return false;
 
     stoppingRef.current = true;
     setStopping(true);
@@ -81,13 +81,12 @@ export function useAutoStopRentalStream(
     }
   }, [
     address,
-    dailyRate,
-    flowRate,
     isRenter,
     onRefetch,
     onUpdated,
     publicClient,
     rental,
+    streamActive,
     writeContractAsync,
   ]);
 

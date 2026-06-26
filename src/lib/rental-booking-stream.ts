@@ -37,6 +37,60 @@ export function streamStoppedForCurrentBooking(rental: Rental): boolean {
   return stoppedMs >= startedMs - HANDOVER_SLACK_MS;
 }
 
+/** On-chain flow timing must match this booking — not an older ended rental. */
+export function flowBelongsToRentalBooking(
+  rental: Rental,
+  flowLastUpdatedSec: bigint | undefined,
+): boolean {
+  if (!flowLastUpdatedSec || !rental.ownerHandoverAt) return false;
+
+  const flowMs = Number(flowLastUpdatedSec) * 1000;
+  const handoverMs = new Date(rental.ownerHandoverAt).getTime();
+  if (flowMs < handoverMs - HANDOVER_SLACK_MS) return false;
+
+  if (streamStoppedForCurrentBooking(rental)) return false;
+
+  if (rental.streamStartedAt) {
+    const startedMs = new Date(rental.streamStartedAt).getTime();
+    if (flowMs < startedMs - HANDOVER_SLACK_MS) return false;
+
+    if (rental.streamStoppedAt) {
+      const stoppedMs = new Date(rental.streamStoppedAt).getTime();
+      if (flowMs > stoppedMs + HANDOVER_SLACK_MS) return false;
+    }
+  }
+
+  return true;
+}
+
+/** Superfluid has one flow per pair — only the latest open booking can be streaming. */
+export function isLatestOpenBookingForPair(
+  rental: Rental,
+  allRentals: Rental[],
+): boolean {
+  const renter = rental.renterAddress.toLowerCase();
+  const owner = rental.ownerAddress.toLowerCase();
+
+  const open = allRentals.filter(
+    (r) =>
+      r.renterAddress.toLowerCase() === renter &&
+      r.ownerAddress.toLowerCase() === owner &&
+      r.status !== "completed" &&
+      Boolean(r.ownerHandoverAt) &&
+      !streamStoppedForCurrentBooking(r),
+  );
+
+  if (open.length === 0) return false;
+
+  const latest = open.reduce((a, b) =>
+    new Date(a.ownerHandoverAt!).getTime() > new Date(b.ownerHandoverAt!).getTime()
+      ? a
+      : b,
+  );
+
+  return latest.id === rental.id;
+}
+
 export function isStreamConfirmingOnChain(
   rental: Rental,
   chain: { flowLoading: boolean; streamActive?: boolean },

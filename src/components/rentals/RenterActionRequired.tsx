@@ -12,14 +12,20 @@ import type { Rental } from "@/lib/types";
 
 export function RenterActionRequired({
   rental,
+  peerRentals = [],
   onUpdated,
 }: {
   rental: Rental;
+  peerRentals?: Rental[];
   onUpdated: () => void | Promise<void>;
 }) {
-  const chain = useSyncRentalStreamFromChain(rental, () => {
-    void onUpdated();
-  });
+  const chain = useSyncRentalStreamFromChain(
+    rental,
+    () => {
+      void onUpdated();
+    },
+    peerRentals,
+  );
   const { startStream, formatError: formatStreamError } = useStartRentalStream(rental);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -11,8 +11,9 @@ import type { Rental } from "@/lib/types";
 export function useSyncRentalStreamFromChain(
   rental: Rental,
   onUpdated: () => void,
+  peerRentals: Rental[] = [],
 ) {
-  const chain = useRentalOnChain(rental);
+  const chain = useRentalOnChain(rental, peerRentals);
   const syncing = useRef(false);
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export function useSyncRentalStreamFromChain(
         chain.onChainFlowActive,
         chain.flowRate,
         chain.flowLastUpdated,
+        peerRentals,
       )
     ) {
       return;
@@ -47,6 +49,7 @@ export function useSyncRentalStreamFromChain(
       });
   }, [
     rental,
+    peerRentals,
     chain.onChainFlowActive,
     chain.flowRate,
     chain.flowLastUpdated,

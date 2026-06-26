@@ -1,5 +1,10 @@
+import {
+  flowBelongsToRentalBooking,
+  isLatestOpenBookingForPair,
+  streamStartedForCurrentBooking,
+  streamStoppedForCurrentBooking,
+} from "@/lib/rental-booking-stream";
 import { dailyRateToFlowRate } from "@/lib/superfluid";
-import { streamStartedForCurrentBooking } from "@/lib/rental-booking-stream";
 import { rentalDailyRate } from "@/lib/rental-stream";
 import type { Rental } from "@/lib/types";
 
@@ -34,15 +39,27 @@ export function isStreamActiveForRental(
   onChainFlowActive: boolean,
   flowRate: bigint | undefined,
   flowLastUpdatedSec: bigint | undefined,
+  peerRentals: Rental[] = [],
 ): boolean {
   if (!onChainFlowActive) return false;
+  if (rental.status === "completed") return false;
+  if (streamStoppedForCurrentBooking(rental)) return false;
+  if (!flowBelongsToRentalBooking(rental, flowLastUpdatedSec)) return false;
 
   const dailyRate = rentalDailyRate(rental);
   if (!flowRateMatchesRental(flowRate, dailyRate)) return false;
 
-  if (hasRecordedStreamStart(rental)) return true;
+  if (peerRentals.length > 0 && !isLatestOpenBookingForPair(rental, peerRentals)) {
+    return false;
+  }
 
-  return flowStartedAfterHandover(flowLastUpdatedSec, rental.ownerHandoverAt);
+  if (streamStartedForCurrentBooking(rental)) return true;
+
+  return (
+    Boolean(rental.ownerHandoverAt) &&
+    !rental.streamStartedAt &&
+    flowStartedAfterHandover(flowLastUpdatedSec, rental.ownerHandoverAt)
+  );
 }
 
 export function canSyncStreamFromChain(
@@ -50,14 +67,20 @@ export function canSyncStreamFromChain(
   onChainFlowActive: boolean,
   flowRate: bigint | undefined,
   flowLastUpdatedSec: bigint | undefined,
+  peerRentals: Rental[] = [],
 ): boolean {
   if (hasRecordedStreamStart(rental)) return false;
   if (!rental.ownerHandoverAt || rental.status === "completed") return false;
+  if (streamStoppedForCurrentBooking(rental)) return false;
+  if (peerRentals.length > 0 && !isLatestOpenBookingForPair(rental, peerRentals)) {
+    return false;
+  }
 
   return isStreamActiveForRental(
     rental,
     onChainFlowActive,
     flowRate,
     flowLastUpdatedSec,
+    peerRentals,
   );
 }

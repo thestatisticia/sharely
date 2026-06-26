@@ -25,7 +25,7 @@ type DepositLock = readonly [
   boolean,
 ];
 
-export function useRentalOnChain(rental: Rental) {
+export function useRentalOnChain(rental: Rental, peerRentals: Rental[] = []) {
   const hasEscrow = Boolean(ESCROW_ADDRESS && rental.bookingId);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -76,6 +76,7 @@ export function useRentalOnChain(rental: Rental) {
     onChainFlowActive,
     flowRate,
     flowLastUpdated,
+    peerRentals,
   );
 
   const canClaimDeposit =

@@ -75,16 +75,18 @@ function StreamProgress({
 
 export function RentalCard({
   rental,
+  peerRentals = [],
   onUpdated,
 }: {
   rental: Rental;
+  peerRentals?: Rental[];
   onUpdated: () => void;
 }) {
   const { address } = useAccount();
   const publicClient = usePublicClient({ chainId: CELO_CHAIN_ID });
   const { writeContractAsync } = useWriteContract();
   const { ensureSession } = useWalletSession();
-  const chain = useSyncRentalStreamFromChain(rental, onUpdated);
+  const chain = useSyncRentalStreamFromChain(rental, onUpdated, peerRentals);
   const { startStream, formatError: formatStreamError } = useStartRentalStream(rental);
   const autoStop = useAutoStopRentalStream(rental, {
     streamActive: chain.streamActive,
@@ -267,7 +269,13 @@ export function RentalCard({
     setError(null);
     try {
       const ok = await autoStop.stopStream();
-      if (!ok) throw new Error("Stop stream failed");
+      if (!ok) {
+        throw new Error(
+          chain.streamActive
+            ? "Could not stop the stream. Try again in MetaMask."
+            : "This booking does not have an active stream. Only your current open rental streams.",
+        );
+      }
       setTxHash(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Stop stream failed");
