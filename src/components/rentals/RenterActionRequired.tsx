@@ -19,7 +19,7 @@ export function RenterActionRequired({
   const chain = useSyncRentalStreamFromChain(rental, () => {
     void onUpdated();
   });
-  const { startStream } = useStartRentalStream(rental);
+  const { startStream, formatError: formatStreamError } = useStartRentalStream(rental);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,14 +36,7 @@ export function RenterActionRequired({
       await chain.refetch();
       await onUpdated();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not start stream";
-      if (message.toLowerCase().includes("reject")) {
-        setError(
-          "Cancelled in MetaMask. Approve the signature, then the stream transaction (CELO gas).",
-        );
-      } else {
-        setError(message);
-      }
+      setError(formatStreamError(err));
     } finally {
       setBusy(false);
     }

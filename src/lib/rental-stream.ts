@@ -113,3 +113,64 @@ export function deleteFlowArgs(rental: Rental) {
     ] as const,
   };
 }
+
+export function updateFlowArgs(
+  rental: Rental,
+  renterAddress: `0x${string}`,
+  flowRate: bigint,
+) {
+  return {
+    address: CFA_FORWARDER_ADDRESS,
+    abi: cfaForwarderAbi,
+    functionName: "updateFlow" as const,
+    args: [
+      G_DOLLAR_TOKEN_ADDRESS,
+      renterAddress,
+      rental.ownerAddress,
+      flowRate,
+      "0x",
+    ] as const,
+  };
+}
+
+export type StreamStartPlan = "create" | "update" | "sync";
+
+export function planStreamStart(
+  existingFlowRate: bigint,
+  targetFlowRate: bigint,
+): StreamStartPlan {
+  if (existingFlowRate <= BigInt(0)) return "create";
+  if (existingFlowRate === targetFlowRate) return "sync";
+  return "update";
+}
+
+export async function getExistingFlowRate(
+  publicClient: PublicClient,
+  rental: Rental,
+): Promise<bigint> {
+  const result = await publicClient.readContract({
+    address: CFA_FORWARDER_ADDRESS,
+    abi: cfaForwarderAbi,
+    functionName: "getFlowInfo",
+    args: [
+      G_DOLLAR_TOKEN_ADDRESS,
+      rental.renterAddress,
+      rental.ownerAddress,
+    ],
+  });
+  return result[1] as bigint;
+}
+
+export function formatStreamStartError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes("0x801b6863") || message.includes("FLOW_ALREADY_EXISTS")) {
+    return "Could not start stream. Try again — an existing stream will be updated automatically.";
+  }
+  if (message.toLowerCase().includes("reject")) {
+    return "Cancelled in MetaMask.";
+  }
+  if (message.includes("insufficient") || message.includes("balance")) {
+    return "Not enough G$ for rental payments (separate from your escrow deposit).";
+  }
+  return message.length > 200 ? "Could not start payment stream. Try again." : message;
+}

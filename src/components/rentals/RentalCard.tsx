@@ -73,7 +73,7 @@ export function RentalCard({
   const { writeContractAsync } = useWriteContract();
   const { signMessageAsync } = useSignMessage();
   const chain = useRentalOnChain(rental);
-  const { startStream } = useStartRentalStream(rental);
+  const { startStream, formatError: formatStreamError } = useStartRentalStream(rental);
   const autoStop = useAutoStopRentalStream(rental, {
     streamActive: chain.streamActive,
     flowRate: chain.flowRate,
@@ -118,10 +118,6 @@ export function RentalCard({
       ownerPhase === "awaiting_renter_stream");
 
   const canCancelBeforePickup = canRenterCancelBeforePickup(rental, address);
-  const strayOnChainFlow =
-    chain.onChainFlowActive &&
-    !chain.streamActive &&
-    renterPhase === "ready_to_start";
 
   const canRenterStartStream = renterPhase === "ready_to_start";
 
@@ -186,14 +182,7 @@ export function RentalCard({
       await chain.refetch();
       await onUpdated();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not start stream";
-      if (message.toLowerCase().includes("reject")) {
-        setError(
-          "Cancelled in MetaMask. Step 1 is a free signature; step 2 is the stream transaction (uses CELO for gas).",
-        );
-      } else {
-        setError(message);
-      }
+      setError(formatStreamError(err));
     } finally {
       setAction(null);
     }
@@ -460,17 +449,6 @@ export function RentalCard({
             Rental payments have stopped. Return the item to the owner and ask
             them to confirm return in the app to release your{" "}
             {formatG$(rental.depositG$)} G$ deposit.
-          </p>
-        </div>
-      ) : null}
-
-      {isRenter && strayOnChainFlow ? (
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
-          <p className="font-semibold">Stream not linked to this booking</p>
-          <p className="mt-1 text-xs">
-            A G$ stream exists between you and this owner on-chain, but it does
-            not match this rental. Finish starting the rental below, or check for
-            an older stream in your wallet history.
           </p>
         </div>
       ) : null}

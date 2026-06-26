@@ -38,6 +38,7 @@ export function useSyncRentalStreamFromChain(
       streamStartedAt: now.toISOString(),
       startDate: now.toISOString(),
       endDate: end.toISOString(),
+      streamStoppedAt: null,
     })
       .then(onUpdated)
       .catch(() => {})

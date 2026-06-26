@@ -14,11 +14,30 @@ import { patchRental } from "@/lib/rentals-api";
 import { buildStreamStartSignMessage } from "@/lib/rental-sign";
 import {
   createFlowArgs,
+  formatStreamStartError,
+  getExistingFlowRate,
+  planStreamStart,
   rentalDailyRate,
+  updateFlowArgs,
   validateStreamStart,
 } from "@/lib/rental-stream";
 import type { Rental } from "@/lib/types";
 import { useGBalance } from "@/hooks/useGoodDollar";
+
+async function patchStreamStarted(rental: Rental, txHash?: `0x${string}`) {
+  const now = new Date();
+  const end = new Date(now);
+  end.setDate(end.getDate() + rental.days);
+
+  await patchRental(rental.id, {
+    status: "active",
+    ...(txHash ? { flowTxHash: txHash, txHash } : {}),
+    streamStartedAt: now.toISOString(),
+    startDate: now.toISOString(),
+    endDate: end.toISOString(),
+    streamStoppedAt: null,
+  });
+}
 
 export function useStartRentalStream(rental: Rental) {
   const { address, chainId } = useAccount();
@@ -47,15 +66,28 @@ export function useStartRentalStream(rental: Rental) {
       chainId,
     });
 
-    const flowCall = createFlowArgs(rental, address, flowRate);
-    const { request } = await publicClient.simulateContract({
-      ...flowCall,
-      account: address,
-    });
+    const existingRate = await getExistingFlowRate(publicClient, rental);
+    const plan = planStreamStart(existingRate, flowRate);
+
+    if (plan === "sync") {
+      await patchStreamStarted(rental);
+      await refetchGBalance();
+      return null;
+    }
 
     const attestAt = new Date().toISOString();
     await signMessageAsync({
       message: buildStreamStartSignMessage(rental, attestAt),
+    });
+
+    const flowCall =
+      plan === "update"
+        ? updateFlowArgs(rental, address, flowRate)
+        : createFlowArgs(rental, address, flowRate);
+
+    const { request } = await publicClient.simulateContract({
+      ...flowCall,
+      account: address,
     });
 
     const hash = await writeContractAsync(request);
@@ -67,19 +99,7 @@ export function useStartRentalStream(rental: Rental) {
       );
     }
 
-    const now = new Date();
-    const end = new Date(now);
-    end.setDate(end.getDate() + rental.days);
-
-    await patchRental(rental.id, {
-      status: "active",
-      flowTxHash: hash,
-      txHash: hash,
-      streamStartedAt: now.toISOString(),
-      startDate: now.toISOString(),
-      endDate: end.toISOString(),
-    });
-
+    await patchStreamStarted(rental, hash);
     await refetchGBalance();
     return hash;
   }, [
@@ -97,5 +117,6 @@ export function useStartRentalStream(rental: Rental) {
   return {
     startStream,
     dailyRate: rentalDailyRate(rental),
+    formatError: formatStreamStartError,
   };
 }
