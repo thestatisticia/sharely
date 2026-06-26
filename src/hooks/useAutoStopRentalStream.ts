@@ -6,6 +6,7 @@ import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import { CELO_CHAIN_ID } from "@/lib/contracts";
 import { deleteFlowArgs, rentalDailyRate } from "@/lib/rental-stream";
 import { flowRateMatchesRental } from "@/lib/rental-stream-state";
+import { patchRental } from "@/lib/rentals-api";
 import { hasReachedRentalPaymentCap } from "@/lib/superfluid";
 import type { Rental } from "@/lib/types";
 
@@ -59,6 +60,9 @@ export function useAutoStopRentalStream(
         stopAttempted.current = false;
         return false;
       }
+      await patchRental(rental.id, {
+        streamStoppedAt: new Date().toISOString(),
+      });
       await onRefetch();
       await onUpdated();
       return true;

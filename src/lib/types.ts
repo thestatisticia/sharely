@@ -46,6 +46,8 @@ export interface Rental {
   streamStartedAt?: string;
   /** Owner confirms physical handover — prompts renter to start stream. */
   ownerHandoverAt?: string;
+  /** Renter ended the payment stream (auto or manual). */
+  streamStoppedAt?: string;
   createdAt: string;
   startDate: string;
   endDate: string;

@@ -26,7 +26,7 @@ import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
-import { canRenterCancelBeforePickup } from "@/lib/renter-action";
+import { canRenterCancelBeforePickup, getRenterRentalPhase } from "@/lib/renter-action";
 import type { Rental } from "@/lib/types";
 
 type Action = "confirm" | "stop" | "claim" | "start" | "handover" | "cancel" | null;
@@ -102,20 +102,24 @@ export function RentalCard({
     [rental, chain.streamActive, chain.depositReleased],
   );
 
+  const renterPhase = isRenter
+    ? getRenterRentalPhase(rental, chain)
+    : null;
+
   const awaitingStreamStart =
     Boolean(rental.bookingId) &&
-    !chain.hasRecordedStreamStart &&
     !chain.streamActive &&
-    !chain.depositReleased;
+    !chain.depositReleased &&
+    !rental.streamStoppedAt &&
+    (renterPhase === "awaiting_pickup" || renterPhase === "ready_to_start");
 
   const canCancelBeforePickup = canRenterCancelBeforePickup(rental, address);
   const strayOnChainFlow =
     chain.onChainFlowActive &&
     !chain.streamActive &&
-    Boolean(rental.ownerHandoverAt);
+    renterPhase === "ready_to_start";
 
-  const canRenterStartStream =
-    awaitingStreamStart && Boolean(rental.ownerHandoverAt);
+  const canRenterStartStream = renterPhase === "ready_to_start";
 
   useEffect(() => {
     if (chain.isComplete && rental.status !== "completed") {
@@ -284,14 +288,18 @@ export function RentalCard({
 
   const statusLabel =
     chain.isComplete || rental.status === "completed"
-      ? "completed"
-      : progress.phase === "pending"
-        ? rental.ownerHandoverAt
+      ? renterPhase === "cancelled"
+        ? "cancelled"
+        : "completed"
+      : renterPhase === "awaiting_pickup"
+        ? "awaiting pickup"
+        : renterPhase === "ready_to_start"
           ? "ready to start"
-          : "awaiting pickup"
-        : chain.streamActive
-          ? "streaming"
-          : rental.status;
+          : renterPhase === "payments_ended"
+            ? "payments ended"
+            : renterPhase === "streaming"
+              ? "streaming"
+              : rental.status;
 
   return (
     <div className="surface space-y-4 p-4">
@@ -394,7 +402,7 @@ export function RentalCard({
         </div>
       ) : null}
 
-      {isRenter && awaitingStreamStart && !rental.ownerHandoverAt ? (
+      {isRenter && renterPhase === "awaiting_pickup" ? (
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
           <p className="font-semibold">Waiting for owner delivery</p>
           <p className="mt-1 text-xs">
@@ -422,6 +430,28 @@ export function RentalCard({
               claim date below if the owner never delivers.
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {isRenter && renterPhase === "cancelled" ? (
+        <div className="rounded-2xl border border-border/80 bg-surface-hover px-3 py-2.5 text-sm text-foreground">
+          <p className="font-semibold">Booking cancelled</p>
+          <p className="mt-1 text-xs text-muted">
+            This booking was cancelled before pickup. The item is listed again.
+            Your deposit stays in escrow until the claim date below unless the
+            owner confirms a return.
+          </p>
+        </div>
+      ) : null}
+
+      {isRenter && renterPhase === "payments_ended" ? (
+        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-2.5 text-sm text-emerald-900">
+          <p className="font-semibold">Payment stream ended</p>
+          <p className="mt-1 text-xs">
+            Rental payments have stopped. Return the item to the owner and ask
+            them to confirm return in the app to release your{" "}
+            {formatG$(rental.depositG$)} G$ deposit.
+          </p>
         </div>
       ) : null}
 

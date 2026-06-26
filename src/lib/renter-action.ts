@@ -14,6 +14,41 @@ export function getAvailableAgainDate(rental: Rental): string | null {
   return null;
 }
 
+export type RenterRentalPhase =
+  | "cancelled"
+  | "awaiting_pickup"
+  | "ready_to_start"
+  | "streaming"
+  | "payments_ended"
+  | "complete";
+
+export function isBookingCancelledBeforePickup(rental: Rental): boolean {
+  return (
+    rental.status === "completed" &&
+    !rental.ownerHandoverAt &&
+    !rental.flowTxHash &&
+    !rental.streamStartedAt
+  );
+}
+
+export function getRenterRentalPhase(
+  rental: Rental,
+  chain: {
+    streamActive: boolean;
+    hasRecordedStreamStart: boolean;
+    depositReleased: boolean;
+  },
+): RenterRentalPhase {
+  if (chain.depositReleased) return "complete";
+  if (isBookingCancelledBeforePickup(rental)) return "cancelled";
+  if (chain.streamActive) return "streaming";
+  if (chain.hasRecordedStreamStart || rental.streamStoppedAt) {
+    return "payments_ended";
+  }
+  if (rental.ownerHandoverAt) return "ready_to_start";
+  return "awaiting_pickup";
+}
+
 export function canRenterCancelBeforePickup(
   rental: Rental,
   wallet: string | undefined,
@@ -39,6 +74,7 @@ export function needsRenterAction(
     Boolean(rental.bookingId) &&
     !rental.flowTxHash &&
     !rental.streamStartedAt &&
+    !rental.streamStoppedAt &&
     rental.status !== "completed" &&
     Boolean(rental.ownerHandoverAt)
   );

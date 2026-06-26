@@ -15,6 +15,9 @@ export function formatSupabaseError(message: string): string {
   ) {
     return "Database needs an update. Run supabase/rentals-migration-handover.sql in Supabase SQL Editor, then try again.";
   }
+  if (message.includes("stream_stopped_at")) {
+    return "Database needs an update. Run supabase/rentals-migration-stream-stopped.sql in Supabase SQL Editor, then try again.";
+  }
   if (message.includes("hidden_by_owner")) {
     return "Database needs an update. Run supabase/listings-hidden-column.sql in Supabase SQL Editor, then try hiding again.";
   }

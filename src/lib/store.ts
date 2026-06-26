@@ -82,6 +82,7 @@ export function updateRental(
       | "status"
       | "streamStartedAt"
       | "ownerHandoverAt"
+      | "streamStoppedAt"
       | "flowTxHash"
       | "startDate"
       | "endDate"

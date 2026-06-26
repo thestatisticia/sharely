@@ -20,7 +20,9 @@ function overlayLocalRentalFields(
 ): Rental {
   if (!local) return remote;
 
-  const streamStarted = Boolean(local.flowTxHash || local.streamStartedAt);
+  const streamStarted = Boolean(
+    local.flowTxHash || local.streamStartedAt || local.streamStoppedAt,
+  );
   const handoverAt = remote.ownerHandoverAt ?? local.ownerHandoverAt;
 
   if (!streamStarted && !handoverAt) return remote;
@@ -30,6 +32,7 @@ function overlayLocalRentalFields(
     ownerHandoverAt: handoverAt,
     flowTxHash: remote.flowTxHash ?? local.flowTxHash,
     streamStartedAt: remote.streamStartedAt ?? local.streamStartedAt,
+    streamStoppedAt: remote.streamStoppedAt ?? local.streamStoppedAt,
     txHash: remote.txHash ?? local.txHash,
     status:
       remote.status === "completed"

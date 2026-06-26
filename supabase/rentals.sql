@@ -17,6 +17,7 @@ create table if not exists public.rentals (
   flow_tx_hash text,
   stream_started_at timestamptz,
   owner_handover_at timestamptz,
+  stream_stopped_at timestamptz,
   start_date timestamptz not null,
   end_date timestamptz not null,
   created_at timestamptz not null default now()

@@ -106,6 +106,7 @@ export async function patchRental(
       | "status"
       | "streamStartedAt"
       | "ownerHandoverAt"
+      | "streamStoppedAt"
       | "flowTxHash"
       | "startDate"
       | "endDate"
@@ -157,6 +158,7 @@ export async function patchRental(
       status: body.rental.status,
       streamStartedAt: body.rental.streamStartedAt,
       ownerHandoverAt: body.rental.ownerHandoverAt,
+      streamStoppedAt: body.rental.streamStoppedAt,
       flowTxHash: body.rental.flowTxHash,
       startDate: body.rental.startDate,
       endDate: body.rental.endDate,
