@@ -178,7 +178,7 @@ export function countRenterActions(
   return rentals.filter((r) => needsRenterAction(r, wallet)).length;
 }
 
-/** Block a second open booking with the same owner — Superfluid allows one stream per pair. */
+/** Block a second in-progress rental with the same owner after delivery (one Superfluid stream per pair). */
 export function hasActiveRentalWithOwner(
   rentals: Rental[],
   renter: string,
@@ -186,11 +186,11 @@ export function hasActiveRentalWithOwner(
 ): boolean {
   const renterLower = renter.toLowerCase();
   const ownerLower = owner.toLowerCase();
-  return rentals.some(
-    (r) =>
-      r.status !== "completed" &&
-      Boolean(r.bookingId) &&
-      r.renterAddress.toLowerCase() === renterLower &&
-      r.ownerAddress.toLowerCase() === ownerLower,
-  );
+  return rentals.some((r) => {
+    if (r.status === "completed") return false;
+    if (r.renterAddress.toLowerCase() !== renterLower) return false;
+    if (r.ownerAddress.toLowerCase() !== ownerLower) return false;
+    if (!r.bookingId || !r.ownerHandoverAt) return false;
+    return !streamStoppedForCurrentBooking(r);
+  });
 }

@@ -1,9 +1,18 @@
 import type { Abi, Address, Hash, PublicClient } from "viem";
+import { maxUint256 } from "viem";
 
-import { ESCROW_ADDRESS, escrowAbi } from "@/lib/contracts";
+import {
+  ESCROW_ADDRESS,
+  G_DOLLAR_TOKEN_ADDRESS,
+  erc20Abi,
+  escrowAbi,
+} from "@/lib/contracts";
+import { formatG$ } from "@/lib/format";
 
 // Wagmi's mutate type is strict; simulate `request` is compatible at runtime.
 type WriteContractAsync = (request: any) => Promise<Hash>;
+
+export const MAX_GDOLLAR_APPROVAL = maxUint256;
 
 export type EscrowDeposit = {
   renter: Address;
@@ -25,7 +34,51 @@ export function isNonceTooLowError(err: unknown): boolean {
 
 export function isDepositExistsError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
-  return message.includes('"exists"') || message.includes("reason: exists");
+  return (
+    message.includes('"exists"') ||
+    message.includes("reason: exists") ||
+    message.includes(": exists")
+  );
+}
+
+function extractRevertReason(message: string): string | null {
+  const patterns = [
+    /reason:\s*([^\n"}\]]+)/i,
+    /reverted with the following reason:\s*([^\n]+)/i,
+    /revert(?:ed)?(?: with reason(?: string)?)?:?\s*["']?(\w+)["']?/i,
+  ];
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    const reason = match?.[1]?.trim();
+    if (reason && reason.length > 0 && reason !== "RPC") return reason;
+  }
+  return null;
+}
+
+export function formatEscrowLockError(
+  err: unknown,
+  depositWei: bigint,
+): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const reason = extractRevertReason(message);
+
+  if (reason === "transfer" || message.includes('"transfer"')) {
+    return (
+      `Escrow could not pull ${formatG$(depositWei)} G$ from your wallet. ` +
+      "Tap Request rental again — step 1 will re-approve G$ for escrow, then lock the deposit."
+    );
+  }
+  if (reason === "exists" || isDepositExistsError(message)) {
+    return "This deposit is already locked on-chain. Open My rentals — your booking may already be there.";
+  }
+  if (reason === "lister") {
+    return "Invalid owner address for this listing. Ask the owner to re-list the item.";
+  }
+  if (reason === "amount") {
+    return "Deposit amount is invalid. The listing may need to be updated.";
+  }
+
+  return formatWalletTxError(err);
 }
 
 /** Plain-language errors for wallet / RPC failures. */
@@ -45,11 +98,20 @@ export function formatWalletTxError(err: unknown): string {
   }
 
   if (isDepositExistsError(message)) {
-    return "This deposit is already locked on-chain. Refresh the page — your booking may already be saved.";
+    return "This deposit is already locked on-chain. Open My rentals — your booking may already be there.";
   }
 
   if (message.includes("insufficient funds")) {
     return "Not enough CELO for gas. Keep a small amount of CELO (about 0.01+) in your wallet.";
+  }
+
+  const reason = extractRevertReason(message);
+  if (reason && reason !== "RPC") {
+    return `Transaction failed: ${reason}`;
+  }
+
+  if (message.includes("reverted")) {
+    return "Transaction would fail on-chain. Check your G$ balance and try again.";
   }
 
   if (message.length > 280) {
@@ -70,7 +132,20 @@ export async function waitForSuccessfulTx(
   }
 }
 
-/** Simulate + write with a fresh pending nonce; retry once on nonce drift. */
+export async function readGAllowance(
+  publicClient: PublicClient,
+  owner: Address,
+): Promise<bigint> {
+  if (!ESCROW_ADDRESS) return BigInt(0);
+  return publicClient.readContract({
+    address: G_DOLLAR_TOKEN_ADDRESS,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [owner, ESCROW_ADDRESS as Address],
+  });
+}
+
+/** Simulate on current chain state, then send with a fresh pending nonce. */
 export async function writeContractFresh(
   publicClient: PublicClient,
   writeContractAsync: WriteContractAsync,
@@ -83,19 +158,18 @@ export async function writeContractFresh(
   },
 ): Promise<Hash> {
   const send = async () => {
-    const nonce = await publicClient.getTransactionCount({
-      address: account,
-      blockTag: "pending",
-    });
     const { request } = await publicClient.simulateContract({
       address: params.address,
       abi: params.abi as Abi,
       functionName: params.functionName,
       args: params.args,
       account,
-      nonce,
     });
-    return writeContractAsync(request);
+    const nonce = await publicClient.getTransactionCount({
+      address: account,
+      blockTag: "pending",
+    });
+    return writeContractAsync({ ...request, nonce });
   };
 
   try {
@@ -105,6 +179,31 @@ export async function writeContractFresh(
       return await send();
     }
     throw err;
+  }
+}
+
+export async function preflightLockDeposit(
+  publicClient: PublicClient,
+  account: Address,
+  bookingId: `0x${string}`,
+  lister: Address,
+  amount: bigint,
+  rentalDays: number,
+): Promise<void> {
+  if (!ESCROW_ADDRESS) {
+    throw new Error("Escrow contract not configured.");
+  }
+
+  try {
+    await publicClient.simulateContract({
+      address: ESCROW_ADDRESS as Address,
+      abi: escrowAbi,
+      functionName: "lockDeposit",
+      args: [bookingId, lister, amount, BigInt(rentalDays)],
+      account,
+    });
+  } catch (err) {
+    throw new Error(formatEscrowLockError(err, amount));
   }
 }
 

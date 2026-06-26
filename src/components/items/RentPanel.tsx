@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   useAccount,
   usePublicClient,
-  useReadContract,
   useWriteContract,
 } from "wagmi";
 import { Loader2, Shield, Waves } from "lucide-react";
@@ -15,6 +14,7 @@ import { VerificationGate } from "@/components/wallet/Verification";
 import { useGBalance, useVerificationState } from "@/hooks/useGoodDollar";
 import { createBookingId } from "@/lib/booking";
 import {
+  CELO_CHAIN_ID,
   ESCROW_ADDRESS,
   G_DOLLAR_TOKEN_ADDRESS,
   erc20Abi,
@@ -27,10 +27,14 @@ import { createId } from "@/lib/store";
 import { flowRateLabel } from "@/lib/superfluid";
 import type { Listing } from "@/lib/types";
 import {
+  MAX_GDOLLAR_APPROVAL,
+  formatEscrowLockError,
   formatWalletTxError,
   isDepositExistsError,
   isDepositLockedForRenter,
+  preflightLockDeposit,
   readEscrowDeposit,
+  readGAllowance,
   waitForSuccessfulTx,
   writeContractFresh,
 } from "@/lib/wallet-tx";
@@ -43,8 +47,8 @@ type RentStep =
   | "error";
 
 export function RentPanel({ listing }: { listing: Listing }) {
-  const { address } = useAccount();
-  const publicClient = usePublicClient();
+  const { address, chainId } = useAccount();
+  const publicClient = usePublicClient({ chainId: CELO_CHAIN_ID });
   const verification = useVerificationState();
   const { balance, refetch: refetchBalance } = useGBalance();
   const [days, setDays] = useState(2);
@@ -58,17 +62,6 @@ export function RentPanel({ listing }: { listing: Listing }) {
   const rentalTotal = listing.dailyRateG$ * days;
   const depositWei = parseG$(listing.depositG$);
   const hasEscrow = Boolean(ESCROW_ADDRESS);
-
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: G_DOLLAR_TOKEN_ADDRESS,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args:
-      address && ESCROW_ADDRESS
-        ? [address, ESCROW_ADDRESS as `0x${string}`]
-        : undefined,
-    query: { enabled: Boolean(address && ESCROW_ADDRESS) },
-  });
 
   /** Deposit only at booking — stream starts after pickup confirmation. */
   const requiredG$ = depositWei;
@@ -92,6 +85,12 @@ export function RentPanel({ listing }: { listing: Listing }) {
 
     if (!address || !publicClient) {
       setError("Connect your wallet on Celo.");
+      submittingRef.current = false;
+      return;
+    }
+
+    if (chainId !== CELO_CHAIN_ID) {
+      setError("Switch your wallet to Celo mainnet, then try again.");
       submittingRef.current = false;
       return;
     }
@@ -150,7 +149,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
       const existingRentals = await fetchRentalsForWallet(address);
       if (hasActiveRentalWithOwner(existingRentals, address, listing.ownerAddress)) {
         setError(
-          "You already have an open rental with this owner. Finish or cancel it before booking another item from them.",
+          "You already have an active rental with this owner (delivery confirmed). Finish that rental before booking another item from them.",
         );
         submittingRef.current = false;
         return;
@@ -162,14 +161,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
       if (isDepositLockedForRenter(onChainDeposit, address)) {
         lockHash = undefined;
       } else {
-        const currentAllowance =
-          allowance ??
-          (await publicClient.readContract({
-            address: G_DOLLAR_TOKEN_ADDRESS,
-            abi: erc20Abi,
-            functionName: "allowance",
-            args: [address, ESCROW_ADDRESS as `0x${string}`],
-          }));
+        let currentAllowance = await readGAllowance(publicClient, address);
 
         if (currentAllowance < depositWei) {
           setStep("approving");
@@ -181,13 +173,28 @@ export function RentPanel({ listing }: { listing: Listing }) {
               address: G_DOLLAR_TOKEN_ADDRESS,
               abi: erc20Abi,
               functionName: "approve",
-              args: [ESCROW_ADDRESS as `0x${string}`, depositWei],
+              args: [ESCROW_ADDRESS as `0x${string}`, MAX_GDOLLAR_APPROVAL],
             },
           );
           await waitForSuccessfulTx(publicClient, approveHash);
           recordHash(approveHash);
-          await refetchAllowance();
+
+          currentAllowance = await readGAllowance(publicClient, address);
+          if (currentAllowance < depositWei) {
+            throw new Error(
+              `G$ approval did not complete. Allowance: ${formatG$(currentAllowance)} G$, need ${formatG$(depositWei)} G$. Try again.`,
+            );
+          }
         }
+
+        await preflightLockDeposit(
+          publicClient,
+          address,
+          bookingId,
+          listing.ownerAddress,
+          depositWei,
+          days,
+        );
 
         setStep("locking");
         try {
@@ -216,7 +223,7 @@ export function RentPanel({ listing }: { listing: Listing }) {
               throw lockErr;
             }
           } else {
-            throw lockErr;
+            throw new Error(formatEscrowLockError(lockErr, depositWei));
           }
         }
       }
