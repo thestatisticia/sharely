@@ -16,7 +16,7 @@ export function getRentalProgress(
 ): RentalProgress {
   const totalRentalG$ = rental.dailyRateG$ * rental.days;
   const daysTotal = rental.days;
-  const streamStarted = Boolean(rental.streamStartedAt || rental.flowTxHash);
+  const streamStarted = Boolean(rental.streamStartedAt);
 
   if (!streamStarted) {
     return {
@@ -29,9 +29,7 @@ export function getRentalProgress(
     };
   }
 
-  const startMs = new Date(
-    rental.streamStartedAt ?? rental.startDate,
-  ).getTime();
+  const startMs = new Date(rental.streamStartedAt!).getTime();
   const endMs = new Date(rental.endDate).getTime();
   const now = Date.now();
   const span = Math.max(endMs - startMs, 1);

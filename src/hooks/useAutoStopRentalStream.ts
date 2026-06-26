@@ -39,7 +39,7 @@ export function useAutoStopRentalStream(
     address &&
     rental.renterAddress.toLowerCase() === address.toLowerCase();
 
-  const streamStartIso = rental.streamStartedAt ?? rental.startDate;
+  const streamStartIso = rental.streamStartedAt;
   const dailyRate = rentalDailyRate(rental);
 
   const stopStream = useCallback(async () => {
@@ -86,7 +86,7 @@ export function useAutoStopRentalStream(
   ]);
 
   useEffect(() => {
-    if (!streamActive || !flowRate || !isRenter) {
+    if (!streamActive || !flowRate || !isRenter || !streamStartIso) {
       stopAttempted.current = false;
       setPaymentCapReached(false);
       return;

@@ -14,7 +14,7 @@ export function getRentalLifecycle(
   depositReleased: boolean,
 ): RentalLifecycle {
   if (depositReleased || rental.status === "completed") return "completed";
-  if (streamActive || rental.flowTxHash) return "active";
+  if (streamActive || rental.streamStartedAt) return "active";
   if (rental.ownerHandoverAt) return "delivered";
   if (rental.status === "pending" || rental.bookingId) return "booked";
   return "booked";

@@ -21,7 +21,7 @@ export function flowStartedAfterHandover(
 }
 
 export function hasRecordedStreamStart(rental: Rental): boolean {
-  return Boolean(rental.flowTxHash || rental.streamStartedAt);
+  return Boolean(rental.streamStartedAt);
 }
 
 export function isStreamActiveForRental(

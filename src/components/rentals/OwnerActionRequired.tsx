@@ -5,6 +5,7 @@ import { useAccount, useSignMessage } from "wagmi";
 import { AlertTriangle, Loader2, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
+import { buildOwnerHandoverPatch } from "@/lib/handover-patch";
 import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
@@ -34,7 +35,7 @@ export function OwnerActionRequired({
       await signMessageAsync({
         message: buildHandoverSignMessage(rental, now),
       });
-      await patchRental(rental.id, { ownerHandoverAt: now });
+      await patchRental(rental.id, buildOwnerHandoverPatch(now));
       await onUpdated();
     } catch (err) {
       const message =

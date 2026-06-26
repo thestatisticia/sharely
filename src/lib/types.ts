@@ -39,11 +39,11 @@ export interface Rental {
   depositG$: number;
   status: RentalStatus;
   bookingId?: `0x${string}`;
-  txHash?: `0x${string}`;
+  txHash?: `0x${string}` | null;
   escrowTxHash?: `0x${string}`;
-  flowTxHash?: `0x${string}`;
+  flowTxHash?: `0x${string}` | null;
   /** When the Superfluid payment stream began (after pickup). */
-  streamStartedAt?: string;
+  streamStartedAt?: string | null;
   /** Owner confirms physical handover — prompts renter to start stream. */
   ownerHandoverAt?: string;
   /** Renter ended the payment stream (auto or manual). */

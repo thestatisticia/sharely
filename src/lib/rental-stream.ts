@@ -133,7 +133,7 @@ export function updateFlowArgs(
   };
 }
 
-export type StreamStartPlan = "create" | "update" | "sync";
+export type StreamStartPlan = "create" | "update" | "sync" | "replace";
 
 export function planStreamStart(
   existingFlowRate: bigint,
@@ -148,7 +148,20 @@ export async function getExistingFlowRate(
   publicClient: PublicClient,
   rental: Rental,
 ): Promise<bigint> {
-  const result = await publicClient.readContract({
+  const result = await readFlowInfo(publicClient, rental);
+  return result[1] as bigint;
+}
+
+export async function getFlowLastUpdated(
+  publicClient: PublicClient,
+  rental: Rental,
+): Promise<bigint> {
+  const result = await readFlowInfo(publicClient, rental);
+  return result[0] as bigint;
+}
+
+async function readFlowInfo(publicClient: PublicClient, rental: Rental) {
+  return publicClient.readContract({
     address: CFA_FORWARDER_ADDRESS,
     abi: cfaForwarderAbi,
     functionName: "getFlowInfo",
@@ -158,7 +171,6 @@ export async function getExistingFlowRate(
       rental.ownerAddress,
     ],
   });
-  return result[1] as bigint;
 }
 
 export function formatStreamStartError(err: unknown): string {

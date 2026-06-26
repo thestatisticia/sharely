@@ -104,15 +104,17 @@ export async function patchRental(
     Pick<
       Rental,
       | "status"
-      | "streamStartedAt"
       | "ownerHandoverAt"
-      | "streamStoppedAt"
-      | "flowTxHash"
       | "startDate"
       | "endDate"
-      | "txHash"
     >
-  >,
+  > &
+    Partial<{
+      streamStartedAt: string | null;
+      streamStoppedAt: string | null;
+      flowTxHash: string | null;
+      txHash: string | null;
+    }>,
   options?: { listingId?: string; relistOnComplete?: boolean; ownerAddress?: `0x${string}` },
 ): Promise<void> {
   updateLocalRental(id, patch);
@@ -146,7 +148,7 @@ export async function patchRental(
     if (res.status === 404) {
       const rental = getRentals().find((r) => r.id === id);
       if (rental) {
-        await upsertRentalOnServer({ ...rental, ...patch });
+        await upsertRentalOnServer({ ...rental, ...patch } as Rental);
         return;
       }
     }
@@ -156,13 +158,13 @@ export async function patchRental(
   if (body.rental) {
     updateLocalRental(id, {
       status: body.rental.status,
-      streamStartedAt: body.rental.streamStartedAt,
+      streamStartedAt: body.rental.streamStartedAt ?? null,
       ownerHandoverAt: body.rental.ownerHandoverAt,
-      streamStoppedAt: body.rental.streamStoppedAt,
-      flowTxHash: body.rental.flowTxHash,
+      streamStoppedAt: body.rental.streamStoppedAt ?? null,
+      flowTxHash: body.rental.flowTxHash ?? null,
       startDate: body.rental.startDate,
       endDate: body.rental.endDate,
-      txHash: body.rental.txHash,
+      txHash: body.rental.txHash ?? null,
     });
   }
 }

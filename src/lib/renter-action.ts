@@ -50,9 +50,8 @@ export function getRenterRentalPhase(
   if (chain.depositReleased) return "complete";
   if (isBookingCancelledBeforePickup(rental)) return "cancelled";
   if (chain.streamActive) return "streaming";
-  if (chain.hasRecordedStreamStart || rental.streamStoppedAt) {
-    return "payments_ended";
-  }
+  if (rental.streamStoppedAt) return "payments_ended";
+  if (rental.streamStartedAt && !chain.streamActive) return "payments_ended";
   if (rental.ownerHandoverAt) return "ready_to_start";
   return "awaiting_pickup";
 }
@@ -68,9 +67,8 @@ export function getOwnerRentalPhase(
   if (chain.depositReleased) return "complete";
   if (isBookingCancelledBeforePickup(rental)) return "cancelled";
   if (chain.streamActive) return "streaming";
-  if (chain.hasRecordedStreamStart || rental.streamStoppedAt) {
-    return "awaiting_return";
-  }
+  if (rental.streamStoppedAt) return "awaiting_return";
+  if (rental.streamStartedAt && !chain.streamActive) return "awaiting_return";
   if (!rental.ownerHandoverAt) return "awaiting_handover";
   return "awaiting_renter_stream";
 }

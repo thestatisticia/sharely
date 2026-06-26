@@ -23,6 +23,7 @@ import {
   escrowAbi,
 } from "@/lib/contracts";
 import { formatG$, shortenAddress } from "@/lib/format";
+import { buildOwnerHandoverPatch } from "@/lib/handover-patch";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
@@ -153,7 +154,7 @@ export function RentalCard({
       await signMessageAsync({
         message: buildHandoverSignMessage(rental, now),
       });
-      await patchRental(rental.id, { ownerHandoverAt: now });
+      await patchRental(rental.id, buildOwnerHandoverPatch(now));
       onUpdated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not record handover";

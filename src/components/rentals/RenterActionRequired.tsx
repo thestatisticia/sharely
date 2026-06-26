@@ -24,8 +24,7 @@ export function RenterActionRequired({
   const [error, setError] = useState<string | null>(null);
 
   const streamLive =
-    chain.streamActive ||
-    Boolean(rental.flowTxHash || rental.streamStartedAt);
+    chain.streamActive || Boolean(rental.streamStartedAt);
 
   async function handleStartStream() {
     if (!chain.hasEscrow) return;

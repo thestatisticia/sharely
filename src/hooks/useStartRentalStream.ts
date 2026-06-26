@@ -12,10 +12,13 @@ import {
 import { CELO_CHAIN_ID } from "@/lib/contracts";
 import { patchRental } from "@/lib/rentals-api";
 import { buildStreamStartSignMessage } from "@/lib/rental-sign";
+import { flowStartedAfterHandover } from "@/lib/rental-stream-state";
 import {
   createFlowArgs,
+  deleteFlowArgs,
   formatStreamStartError,
   getExistingFlowRate,
+  getFlowLastUpdated,
   planStreamStart,
   rentalDailyRate,
   updateFlowArgs,
@@ -67,7 +70,18 @@ export function useStartRentalStream(rental: Rental) {
     });
 
     const existingRate = await getExistingFlowRate(publicClient, rental);
-    const plan = planStreamStart(existingRate, flowRate);
+    let plan = planStreamStart(existingRate, flowRate);
+
+    if (plan === "sync") {
+      const lastUpdated = await getFlowLastUpdated(publicClient, rental);
+      const flowBelongsToBooking = flowStartedAfterHandover(
+        lastUpdated,
+        rental.ownerHandoverAt,
+      );
+      if (!flowBelongsToBooking) {
+        plan = "replace";
+      }
+    }
 
     if (plan === "sync") {
       await patchStreamStarted(rental);
@@ -79,6 +93,22 @@ export function useStartRentalStream(rental: Rental) {
     await signMessageAsync({
       message: buildStreamStartSignMessage(rental, attestAt),
     });
+
+    if (plan === "replace") {
+      const deleteCall = deleteFlowArgs(rental);
+      const { request: deleteRequest } = await publicClient.simulateContract({
+        ...deleteCall,
+        account: address,
+      });
+      const deleteHash = await writeContractAsync(deleteRequest);
+      const deleteReceipt = await publicClient.waitForTransactionReceipt({
+        hash: deleteHash,
+      });
+      if (deleteReceipt.status === "reverted") {
+        throw new Error("Could not clear the previous payment stream.");
+      }
+      plan = "create";
+    }
 
     const flowCall =
       plan === "update"

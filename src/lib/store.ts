@@ -80,18 +80,29 @@ export function updateRental(
     Pick<
       Rental,
       | "status"
-      | "streamStartedAt"
       | "ownerHandoverAt"
-      | "streamStoppedAt"
-      | "flowTxHash"
       | "startDate"
       | "endDate"
-      | "txHash"
     >
-  >,
+  > &
+    Partial<{
+      streamStartedAt: string | null;
+      streamStoppedAt: string | null;
+      flowTxHash: string | null;
+      txHash: string | null;
+    }>,
 ) {
   const rentals = getRentals();
-  const next = rentals.map((r) => (r.id === id ? { ...r, ...patch } : r));
+  const next = rentals.map((r) => {
+    if (r.id !== id) return r;
+    const merged = { ...r, ...patch } as Rental;
+    (Object.keys(patch) as (keyof typeof patch)[]).forEach((key) => {
+      if (patch[key] === null) {
+        delete (merged as unknown as Record<string, unknown>)[key];
+      }
+    });
+    return merged;
+  });
   writeJson(RENTALS_KEY, next);
 }
 

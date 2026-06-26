@@ -14,37 +14,63 @@ export function mergeRentalsWithLocal(
   return [...merged, ...localOnly];
 }
 
+function localStreamBelongsToBooking(
+  local: Rental,
+  handoverAt: string,
+): boolean {
+  const handoverMs = new Date(handoverAt).getTime();
+  if (local.streamStoppedAt) {
+    return new Date(local.streamStoppedAt).getTime() >= handoverMs - 120_000;
+  }
+  if (local.streamStartedAt) {
+    return new Date(local.streamStartedAt).getTime() >= handoverMs - 120_000;
+  }
+  return false;
+}
+
 function overlayLocalRentalFields(
   remote: Rental,
   local: Rental | undefined,
 ): Rental {
   if (!local) return remote;
 
-  const streamStarted = Boolean(
-    local.flowTxHash || local.streamStartedAt || local.streamStoppedAt,
-  );
   const handoverAt = remote.ownerHandoverAt ?? local.ownerHandoverAt;
+  const localStreamValid =
+    Boolean(handoverAt) && localStreamBelongsToBooking(local, handoverAt!);
+
+  const streamStarted = Boolean(
+    remote.streamStartedAt ||
+      (localStreamValid && (local.streamStartedAt || local.streamStoppedAt)),
+  );
 
   if (!streamStarted && !handoverAt) return remote;
 
   return {
     ...remote,
     ownerHandoverAt: handoverAt,
-    flowTxHash: remote.flowTxHash ?? local.flowTxHash,
-    streamStartedAt: remote.streamStartedAt ?? local.streamStartedAt,
-    streamStoppedAt: remote.streamStoppedAt ?? local.streamStoppedAt,
-    txHash: remote.txHash ?? local.txHash,
+    flowTxHash: remote.flowTxHash ?? (localStreamValid ? local.flowTxHash : undefined),
+    streamStartedAt:
+      remote.streamStartedAt ??
+      (localStreamValid ? local.streamStartedAt : undefined),
+    streamStoppedAt:
+      remote.streamStoppedAt ??
+      (localStreamValid ? local.streamStoppedAt : undefined),
+    txHash: remote.txHash ?? (localStreamValid ? local.txHash : undefined),
     status:
       remote.status === "completed"
         ? "completed"
         : streamStarted
           ? "active"
           : remote.status,
-    startDate: local.streamStartedAt
-      ? (local.startDate ?? remote.startDate)
-      : remote.startDate,
-    endDate: local.streamStartedAt
-      ? (local.endDate ?? remote.endDate)
-      : remote.endDate,
+    startDate: remote.streamStartedAt
+      ? remote.startDate
+      : localStreamValid && local.streamStartedAt
+        ? (local.startDate ?? remote.startDate)
+        : remote.startDate,
+    endDate: remote.streamStartedAt
+      ? remote.endDate
+      : localStreamValid && local.streamStartedAt
+        ? (local.endDate ?? remote.endDate)
+        : remote.endDate,
   };
 }
