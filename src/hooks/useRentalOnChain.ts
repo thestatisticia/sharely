@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useReadContract } from "wagmi";
 
 import {
@@ -11,7 +12,6 @@ import {
 } from "@/lib/contracts";
 import type { Rental } from "@/lib/types";
 import {
-  canSyncStreamFromChain,
   hasRecordedStreamStart,
   isStreamActiveForRental,
 } from "@/lib/rental-stream-state";
@@ -27,6 +27,12 @@ type DepositLock = readonly [
 
 export function useRentalOnChain(rental: Rental) {
   const hasEscrow = Boolean(ESCROW_ADDRESS && rental.bookingId);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const {
     data: depositData,
@@ -77,7 +83,7 @@ export function useRentalOnChain(rental: Rental) {
     !depositLoading &&
     !depositReleased &&
     claimableAfterSec !== undefined &&
-    Date.now() >= claimableAfterSec * 1000;
+    nowMs >= claimableAfterSec * 1000;
 
   const claimableAfterDate =
     claimableAfterSec !== undefined
@@ -99,6 +105,7 @@ export function useRentalOnChain(rental: Rental) {
     canClaimDeposit,
     claimableAfterDate,
     isComplete,
+    nowMs,
     refetch: async () => {
       await Promise.all([refetchDeposit(), refetchFlow()]);
     },

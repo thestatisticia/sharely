@@ -26,7 +26,7 @@ export function RenterActionRequired({
 
   const streamLive =
     chain.streamActive ||
-    isStreamConfirmingOnChain(rental, chain) ||
+    isStreamConfirmingOnChain(rental, chain, chain.nowMs) ||
     streamStartedForCurrentBooking(rental);
 
   async function handleStartStream() {

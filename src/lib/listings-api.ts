@@ -12,7 +12,7 @@ export function notifyListingsUpdated() {
   }
 }
 
-export function useRemoteListings(): boolean {
+export function isRemoteListingsEnabled(): boolean {
   return Boolean(
     typeof window !== "undefined" &&
       process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -20,8 +20,12 @@ export function useRemoteListings(): boolean {
   );
 }
 
+export function useRemoteListings(): boolean {
+  return isRemoteListingsEnabled();
+}
+
 export async function fetchListings(): Promise<Listing[]> {
-  if (useRemoteListings()) {
+  if (isRemoteListingsEnabled()) {
     const res = await fetch("/api/listings", { cache: "no-store" });
     const data: unknown = await res.json().catch(() => null);
 
@@ -43,7 +47,7 @@ export async function fetchListings(): Promise<Listing[]> {
 }
 
 export async function fetchListingById(id: string): Promise<Listing | null> {
-  if (useRemoteListings()) {
+  if (isRemoteListingsEnabled()) {
     const res = await fetch(`/api/listings/${id}`, { cache: "no-store" });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error("Could not load listing");
@@ -53,7 +57,7 @@ export async function fetchListingById(id: string): Promise<Listing | null> {
 }
 
 export async function createListing(listing: Listing): Promise<void> {
-  if (useRemoteListings()) {
+  if (isRemoteListingsEnabled()) {
     const res = await fetch("/api/listings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,7 +75,7 @@ export async function createListing(listing: Listing): Promise<void> {
 export async function fetchOwnerListings(
   wallet: `0x${string}`,
 ): Promise<import("@/lib/types").Listing[]> {
-  if (!useRemoteListings()) {
+  if (!isRemoteListingsEnabled()) {
     const lower = wallet.toLowerCase();
     return getListings().filter(
       (l) => l.ownerAddress.toLowerCase() === lower,
@@ -93,7 +97,7 @@ export async function setListingVisibility(
 ): Promise<void> {
   updateListingVisibility(listingId, patch);
 
-  if (!useRemoteListings()) {
+  if (!isRemoteListingsEnabled()) {
     notifyListingsUpdated();
     return;
   }

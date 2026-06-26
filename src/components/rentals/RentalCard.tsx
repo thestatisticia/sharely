@@ -19,6 +19,7 @@ import { useAutoStopRentalStream } from "@/hooks/useAutoStopRentalStream";
 import { useSyncRentalStreamFromChain } from "@/hooks/useSyncRentalStreamFromChain";
 import { useStartRentalStream } from "@/hooks/useStartRentalStream";
 import {
+  CELO_CHAIN_ID,
   ESCROW_ADDRESS,
   escrowAbi,
 } from "@/lib/contracts";
@@ -28,7 +29,11 @@ import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
 import { canRenterCancelBeforePickup, getOwnerRentalPhase, getRenterRentalPhase } from "@/lib/renter-action";
-import { isStreamConfirmingOnChain } from "@/lib/rental-booking-stream";
+import {
+  isStreamConfirmingOnChain,
+  streamStartedForCurrentBooking,
+  streamStoppedForCurrentBooking,
+} from "@/lib/rental-booking-stream";
 import type { Rental } from "@/lib/types";
 import {
   formatWalletTxError,
@@ -76,7 +81,7 @@ export function RentalCard({
   onUpdated: () => void;
 }) {
   const { address } = useAccount();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: CELO_CHAIN_ID });
   const { writeContractAsync } = useWriteContract();
   const { signMessageAsync } = useSignMessage();
   const chain = useSyncRentalStreamFromChain(rental, onUpdated);
@@ -119,7 +124,7 @@ export function RentalCard({
     Boolean(rental.bookingId) &&
     !chain.streamActive &&
     !chain.depositReleased &&
-    !rental.streamStoppedAt &&
+    !streamStoppedForCurrentBooking(rental) &&
     (renterPhase === "awaiting_pickup" ||
       renterPhase === "ready_to_start" ||
       ownerPhase === "awaiting_handover" ||
@@ -129,7 +134,8 @@ export function RentalCard({
 
   const canRenterStartStream = renterPhase === "ready_to_start";
   const streamConfirming =
-    isStreamConfirmingOnChain(rental, chain) && renterPhase === "streaming";
+    isStreamConfirmingOnChain(rental, chain, chain.nowMs) &&
+    renterPhase === "streaming";
 
   useEffect(() => {
     if (chain.isComplete && rental.status !== "completed") {
@@ -141,7 +147,7 @@ export function RentalCard({
     } else if (
       chain.streamActive &&
       rental.status === "pending" &&
-      rental.flowTxHash
+      streamStartedForCurrentBooking(rental)
     ) {
       void patchRental(rental.id, { status: "active" }).then(onUpdated);
     }
@@ -151,6 +157,8 @@ export function RentalCard({
     rental.id,
     rental.listingId,
     rental.status,
+    rental.streamStartedAt,
+    rental.ownerHandoverAt,
     onUpdated,
   ]);
 

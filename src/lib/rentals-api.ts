@@ -6,16 +6,17 @@ import {
   updateRental as updateLocalRental,
 } from "@/lib/store";
 import { mergeRentalsWithLocal } from "@/lib/rental-merge";
-import { useRemoteListings, setListingVisibility } from "@/lib/listings-api";
+import { sanitizeRentalStreamFields } from "@/lib/rental-booking-stream";
+import { isRemoteListingsEnabled, setListingVisibility } from "@/lib/listings-api";
 
 export function useRemoteRentals(): boolean {
-  return useRemoteListings();
+  return isRemoteListingsEnabled();
 }
 
 export async function fetchRentalsForWallet(
   wallet: `0x${string}`,
 ): Promise<Rental[]> {
-  if (useRemoteRentals()) {
+  if (isRemoteListingsEnabled()) {
     const res = await fetch(
       `/api/rentals?wallet=${encodeURIComponent(wallet)}`,
       { cache: "no-store" },
@@ -39,22 +40,22 @@ export async function fetchRentalsForWallet(
     return mergeRentalsWithLocal(remote, local);
   }
 
-  return getRentalsForWallet(wallet);
+  return getRentalsForWallet(wallet).map(sanitizeRentalStreamFields);
 }
 
 export async function fetchActiveRentalForListing(
   listingId: string,
 ): Promise<import("@/lib/types").Rental | null> {
-  if (!useRemoteRentals()) {
+  if (!isRemoteListingsEnabled()) {
     const { getRentals } = await import("@/lib/store");
-    return (
+    const rental =
       getRentals().find(
         (r) =>
           r.listingId === listingId &&
           r.status !== "completed" &&
           Boolean(r.bookingId),
-      ) ?? null
-    );
+      ) ?? null;
+    return rental ? sanitizeRentalStreamFields(rental) : null;
   }
 
   const res = await fetch(`/api/rentals/by-listing/${listingId}`, {
@@ -62,13 +63,13 @@ export async function fetchActiveRentalForListing(
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { rental?: import("@/lib/types").Rental | null };
-  return data.rental ?? null;
+  return data.rental ? sanitizeRentalStreamFields(data.rental) : null;
 }
 
 export async function createRental(rental: Rental): Promise<void> {
   saveRental(rental);
 
-  if (useRemoteRentals()) {
+  if (isRemoteListingsEnabled()) {
     const res = await fetch("/api/rentals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -131,7 +132,7 @@ export async function patchRental(
     );
   }
 
-  if (!useRemoteRentals()) return;
+  if (!isRemoteListingsEnabled()) return;
 
   const res = await fetch(`/api/rentals/${id}`, {
     method: "PATCH",

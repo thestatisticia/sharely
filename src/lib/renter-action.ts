@@ -51,11 +51,12 @@ export function getRenterRentalPhase(
     hasRecordedStreamStart: boolean;
     depositReleased: boolean;
     flowLoading: boolean;
+    nowMs: number;
   },
 ): RenterRentalPhase {
   if (chain.depositReleased) return "complete";
   if (isBookingCancelledBeforePickup(rental)) return "cancelled";
-  if (chain.streamActive || isStreamConfirmingOnChain(rental, chain)) {
+  if (chain.streamActive || isStreamConfirmingOnChain(rental, chain, chain.nowMs)) {
     return "streaming";
   }
   if (streamStoppedForCurrentBooking(rental)) return "payments_ended";
@@ -73,11 +74,12 @@ export function getOwnerRentalPhase(
     hasRecordedStreamStart: boolean;
     depositReleased: boolean;
     flowLoading: boolean;
+    nowMs: number;
   },
 ): OwnerRentalPhase {
   if (chain.depositReleased) return "complete";
   if (isBookingCancelledBeforePickup(rental)) return "cancelled";
-  if (chain.streamActive || isStreamConfirmingOnChain(rental, chain)) {
+  if (chain.streamActive || isStreamConfirmingOnChain(rental, chain, chain.nowMs)) {
     return "streaming";
   }
   if (streamStoppedForCurrentBooking(rental)) return "awaiting_return";

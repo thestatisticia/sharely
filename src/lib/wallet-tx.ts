@@ -9,7 +9,8 @@ import {
 } from "@/lib/contracts";
 import { formatG$ } from "@/lib/format";
 
-// Wagmi's mutate type is strict; simulate `request` is compatible at runtime.
+// Wagmi simulate `request` is passed through to writeContractAsync at runtime.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type WriteContractAsync = (request: any) => Promise<Hash>;
 
 export const MAX_GDOLLAR_APPROVAL = maxUint256;

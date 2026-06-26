@@ -39,12 +39,14 @@ export function streamStoppedForCurrentBooking(rental: Rental): boolean {
 
 export function isStreamConfirmingOnChain(
   rental: Rental,
-  chain: { flowLoading: boolean },
+  chain: { flowLoading: boolean; streamActive?: boolean },
+  nowMs: number,
 ): boolean {
   if (chain.flowLoading) return true;
-  if (!rental.flowTxHash || !streamStartedForCurrentBooking(rental)) return false;
-  if (rental.streamStoppedAt) return false;
-  const ageMs = Date.now() - new Date(rental.streamStartedAt!).getTime();
+  if (!streamStartedForCurrentBooking(rental)) return false;
+  if (streamStoppedForCurrentBooking(rental)) return false;
+  if (chain.streamActive) return false;
+  const ageMs = nowMs - new Date(rental.streamStartedAt!).getTime();
   return ageMs < CHAIN_CONFIRM_GRACE_MS;
 }
 

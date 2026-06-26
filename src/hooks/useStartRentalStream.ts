@@ -25,7 +25,6 @@ import {
   validateStreamStart,
 } from "@/lib/rental-stream";
 import {
-  formatWalletTxError,
   waitForSuccessfulTx,
   writeContractFresh,
 } from "@/lib/wallet-tx";
