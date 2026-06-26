@@ -8,6 +8,7 @@ import {
 } from "@/lib/contracts";
 import { formatG$ } from "@/lib/format";
 import { dailyRateToFlowRate, streamedTotal } from "@/lib/superfluid";
+import { formatWalletTxError } from "@/lib/wallet-tx";
 import type { Rental } from "@/lib/types";
 
 /** Minimum CELO (wei) we expect for a createFlow tx on Celo mainnet. */
@@ -183,6 +184,9 @@ export function formatStreamStartError(err: unknown): string {
   }
   if (message.includes("insufficient") || message.includes("balance")) {
     return "Not enough G$ for rental payments (separate from your escrow deposit).";
+  }
+  if (message.includes("nonce too low")) {
+    return formatWalletTxError(err);
   }
   return message.length > 200 ? "Could not start payment stream. Try again." : message;
 }

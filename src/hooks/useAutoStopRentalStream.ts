@@ -9,6 +9,10 @@ import { flowRateMatchesRental } from "@/lib/rental-stream-state";
 import { patchRental } from "@/lib/rentals-api";
 import { hasReachedRentalPaymentCap } from "@/lib/superfluid";
 import type { Rental } from "@/lib/types";
+import {
+  waitForSuccessfulTx,
+  writeContractFresh,
+} from "@/lib/wallet-tx";
 
 const POLL_MS = 12_000;
 
@@ -49,17 +53,13 @@ export function useAutoStopRentalStream(
     stoppingRef.current = true;
     setStopping(true);
     try {
-      const call = deleteFlowArgs(rental);
-      const { request } = await publicClient.simulateContract({
-        ...call,
-        account: address,
-      });
-      const hash = await writeContractAsync(request);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      if (receipt.status === "reverted") {
-        stopAttempted.current = false;
-        return false;
-      }
+      const hash = await writeContractFresh(
+        publicClient,
+        writeContractAsync,
+        address,
+        deleteFlowArgs(rental),
+      );
+      await waitForSuccessfulTx(publicClient, hash);
       await patchRental(rental.id, {
         streamStoppedAt: new Date().toISOString(),
       });

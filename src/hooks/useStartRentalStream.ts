@@ -24,6 +24,11 @@ import {
   updateFlowArgs,
   validateStreamStart,
 } from "@/lib/rental-stream";
+import {
+  formatWalletTxError,
+  waitForSuccessfulTx,
+  writeContractFresh,
+} from "@/lib/wallet-tx";
 import type { Rental } from "@/lib/types";
 import { useGBalance } from "@/hooks/useGoodDollar";
 
@@ -95,18 +100,13 @@ export function useStartRentalStream(rental: Rental) {
     });
 
     if (plan === "replace") {
-      const deleteCall = deleteFlowArgs(rental);
-      const { request: deleteRequest } = await publicClient.simulateContract({
-        ...deleteCall,
-        account: address,
-      });
-      const deleteHash = await writeContractAsync(deleteRequest);
-      const deleteReceipt = await publicClient.waitForTransactionReceipt({
-        hash: deleteHash,
-      });
-      if (deleteReceipt.status === "reverted") {
-        throw new Error("Could not clear the previous payment stream.");
-      }
+      const deleteHash = await writeContractFresh(
+        publicClient,
+        writeContractAsync,
+        address,
+        deleteFlowArgs(rental),
+      );
+      await waitForSuccessfulTx(publicClient, deleteHash);
       plan = "create";
     }
 
@@ -115,19 +115,14 @@ export function useStartRentalStream(rental: Rental) {
         ? updateFlowArgs(rental, address, flowRate)
         : createFlowArgs(rental, address, flowRate);
 
-    const { request } = await publicClient.simulateContract({
-      ...flowCall,
-      account: address,
-    });
+    const hash = await writeContractFresh(
+      publicClient,
+      writeContractAsync,
+      address,
+      flowCall,
+    );
 
-    const hash = await writeContractAsync(request);
-
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    if (receipt.status === "reverted") {
-      throw new Error(
-        "Stream transaction failed on-chain. Make sure you have enough G$ for rental payments (not just the escrow deposit).",
-      );
-    }
+    await waitForSuccessfulTx(publicClient, hash);
 
     await patchStreamStarted(rental, hash);
     await refetchGBalance();

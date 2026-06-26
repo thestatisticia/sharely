@@ -29,6 +29,11 @@ import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
 import { canRenterCancelBeforePickup, getOwnerRentalPhase, getRenterRentalPhase } from "@/lib/renter-action";
 import type { Rental } from "@/lib/types";
+import {
+  formatWalletTxError,
+  waitForSuccessfulTx,
+  writeContractFresh,
+} from "@/lib/wallet-tx";
 
 type Action = "confirm" | "stop" | "claim" | "start" | "handover" | "cancel" | null;
 
@@ -170,8 +175,28 @@ export function RentalCard({
 
   async function waitTx(hash: `0x${string}`) {
     if (!publicClient) throw new Error("No RPC client");
-    await publicClient.waitForTransactionReceipt({ hash });
+    await waitForSuccessfulTx(publicClient, hash);
     setTxHash(hash);
+  }
+
+  async function writeEscrow(
+    functionName: "confirmReturn" | "claimDeposit",
+  ) {
+    if (!address || !publicClient || !rental.bookingId || !ESCROW_ADDRESS) {
+      throw new Error("Wallet or booking not ready.");
+    }
+    const hash = await writeContractFresh(
+      publicClient,
+      writeContractAsync,
+      address,
+      {
+        address: ESCROW_ADDRESS as `0x${string}`,
+        abi: escrowAbi,
+        functionName,
+        args: [rental.bookingId],
+      },
+    );
+    await waitTx(hash);
   }
 
   async function handleStartStream() {
@@ -216,17 +241,11 @@ export function RentalCard({
     setAction("confirm");
     setError(null);
     try {
-      const hash = await writeContractAsync({
-        address: ESCROW_ADDRESS as `0x${string}`,
-        abi: escrowAbi,
-        functionName: "confirmReturn",
-        args: [rental.bookingId],
-      });
-      await waitTx(hash);
+      await writeEscrow("confirmReturn");
       await chain.refetch();
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Confirm return failed");
+      setError(formatWalletTxError(err));
     } finally {
       setAction(null);
     }
@@ -252,17 +271,11 @@ export function RentalCard({
     setAction("claim");
     setError(null);
     try {
-      const hash = await writeContractAsync({
-        address: ESCROW_ADDRESS as `0x${string}`,
-        abi: escrowAbi,
-        functionName: "claimDeposit",
-        args: [rental.bookingId],
-      });
-      await waitTx(hash);
+      await writeEscrow("claimDeposit");
       await chain.refetch();
       onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Claim deposit failed");
+      setError(formatWalletTxError(err));
     } finally {
       setAction(null);
     }
