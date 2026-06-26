@@ -14,6 +14,14 @@ export function getAvailableAgainDate(rental: Rental): string | null {
   return null;
 }
 
+export type OwnerRentalPhase =
+  | "cancelled"
+  | "awaiting_handover"
+  | "awaiting_renter_stream"
+  | "streaming"
+  | "awaiting_return"
+  | "complete";
+
 export type RenterRentalPhase =
   | "cancelled"
   | "awaiting_pickup"
@@ -47,6 +55,76 @@ export function getRenterRentalPhase(
   }
   if (rental.ownerHandoverAt) return "ready_to_start";
   return "awaiting_pickup";
+}
+
+export function getOwnerRentalPhase(
+  rental: Rental,
+  chain: {
+    streamActive: boolean;
+    hasRecordedStreamStart: boolean;
+    depositReleased: boolean;
+  },
+): OwnerRentalPhase {
+  if (chain.depositReleased) return "complete";
+  if (isBookingCancelledBeforePickup(rental)) return "cancelled";
+  if (chain.streamActive) return "streaming";
+  if (chain.hasRecordedStreamStart || rental.streamStoppedAt) {
+    return "awaiting_return";
+  }
+  if (!rental.ownerHandoverAt) return "awaiting_handover";
+  return "awaiting_renter_stream";
+}
+
+export function needsOwnerHandover(
+  rental: Rental,
+  wallet: string | undefined,
+): boolean {
+  if (!wallet) return false;
+  return (
+    rental.ownerAddress.toLowerCase() === wallet.toLowerCase() &&
+    Boolean(rental.bookingId) &&
+    !rental.ownerHandoverAt &&
+    !rental.streamStoppedAt &&
+    rental.status !== "completed"
+  );
+}
+
+export function needsOwnerReturnConfirm(
+  rental: Rental,
+  wallet: string | undefined,
+): boolean {
+  if (!wallet) return false;
+  return (
+    rental.ownerAddress.toLowerCase() === wallet.toLowerCase() &&
+    Boolean(rental.streamStoppedAt) &&
+    rental.status !== "completed"
+  );
+}
+
+export function needsOwnerAction(
+  rental: Rental,
+  wallet: string | undefined,
+): boolean {
+  return (
+    needsOwnerHandover(rental, wallet) ||
+    needsOwnerReturnConfirm(rental, wallet)
+  );
+}
+
+export function countOwnerActions(
+  rentals: Rental[],
+  wallet: string | undefined,
+): number {
+  return rentals.filter((r) => needsOwnerAction(r, wallet)).length;
+}
+
+export function countPendingRentalActions(
+  rentals: Rental[],
+  wallet: string | undefined,
+): number {
+  return (
+    countRenterActions(rentals, wallet) + countOwnerActions(rentals, wallet)
+  );
 }
 
 export function canRenterCancelBeforePickup(

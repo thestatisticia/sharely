@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import { Loader2, PackageOpen } from "lucide-react";
 
+import { OwnerActionRequired } from "@/components/rentals/OwnerActionRequired";
 import { RentalCard } from "@/components/rentals/RentalCard";
 import { RenterActionRequired } from "@/components/rentals/RenterActionRequired";
 import { Page, PageHero, Surface } from "@/components/layout/Page";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useClientRentals } from "@/hooks/useClientRentals";
-import { needsRenterAction } from "@/lib/renter-action";
+import { needsOwnerHandover, needsRenterAction } from "@/lib/renter-action";
 
 export default function RentalsPage() {
   const { address, isConnected } = useAccount();
@@ -23,6 +24,7 @@ export default function RentalsPage() {
   );
 
   const urgentRenting = renting.filter((r) => needsRenterAction(r, address));
+  const urgentLending = lending.filter((r) => needsOwnerHandover(r, address));
   const otherRenting = renting.filter((r) => !needsRenterAction(r, address));
   const sortedRenting = [...urgentRenting, ...otherRenting];
 
@@ -86,6 +88,18 @@ export default function RentalsPage() {
         </div>
       ) : (
         <>
+          {urgentLending.length > 0 ? (
+            <section className="space-y-3">
+              {urgentLending.map((rental) => (
+                <OwnerActionRequired
+                  key={rental.id}
+                  rental={rental}
+                  onUpdated={() => reload({ silent: true })}
+                />
+              ))}
+            </section>
+          ) : null}
+
           {urgentRenting.length > 0 ? (
             <section className="space-y-3">
               {urgentRenting.map((rental) => (

@@ -26,7 +26,7 @@ import { formatG$, shortenAddress } from "@/lib/format";
 import { patchRental } from "@/lib/rentals-api";
 import { getRentalProgress } from "@/lib/rental-progress";
 import { buildHandoverSignMessage } from "@/lib/rental-sign";
-import { canRenterCancelBeforePickup, getRenterRentalPhase } from "@/lib/renter-action";
+import { canRenterCancelBeforePickup, getOwnerRentalPhase, getRenterRentalPhase } from "@/lib/renter-action";
 import type { Rental } from "@/lib/types";
 
 type Action = "confirm" | "stop" | "claim" | "start" | "handover" | "cancel" | null;
@@ -105,13 +105,17 @@ export function RentalCard({
   const renterPhase = isRenter
     ? getRenterRentalPhase(rental, chain)
     : null;
+  const ownerPhase = isOwner ? getOwnerRentalPhase(rental, chain) : null;
 
   const awaitingStreamStart =
     Boolean(rental.bookingId) &&
     !chain.streamActive &&
     !chain.depositReleased &&
     !rental.streamStoppedAt &&
-    (renterPhase === "awaiting_pickup" || renterPhase === "ready_to_start");
+    (renterPhase === "awaiting_pickup" ||
+      renterPhase === "ready_to_start" ||
+      ownerPhase === "awaiting_handover" ||
+      ownerPhase === "awaiting_renter_stream");
 
   const canCancelBeforePickup = canRenterCancelBeforePickup(rental, address);
   const strayOnChainFlow =
@@ -367,38 +371,43 @@ export function RentalCard({
         </div>
       ) : null}
 
-      {isOwner && awaitingStreamStart && !chain.streamActive ? (
+      {isOwner && ownerPhase === "awaiting_handover" ? (
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
           <p className="inline-flex items-center gap-1.5 font-semibold">
             <Package className="h-4 w-4" />
-            New booking — deposit locked
+            New booking — confirm delivery
           </p>
           <p className="mt-1 text-xs">
-            Hand over the item, then sign in MetaMask to confirm delivery. The
-            renter must then start the G$ stream from their wallet.
+            The renter&apos;s deposit is locked in escrow. Hand over the item,
+            then sign in MetaMask to confirm delivery. They start the G$ payment
+            stream after that.
           </p>
-          {!rental.ownerHandoverAt ? (
-            <Button
-              fullWidth
-              className="mt-3"
-              size="sm"
-              onClick={() => void handleConfirmHandover()}
-              disabled={busy}
-            >
-              {action === "handover" ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Confirm in MetaMask…
-                </>
-              ) : (
-                "I've delivered the item"
-              )}
-            </Button>
-          ) : (
-            <p className="mt-2 text-xs font-medium">
-              Handover recorded — waiting for renter to start payments.
-            </p>
-          )}
+          <Button
+            fullWidth
+            className="mt-3"
+            size="sm"
+            onClick={() => void handleConfirmHandover()}
+            disabled={busy}
+          >
+            {action === "handover" ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Confirm in MetaMask…
+              </>
+            ) : (
+              "I've delivered the item"
+            )}
+          </Button>
+        </div>
+      ) : null}
+
+      {isOwner && ownerPhase === "awaiting_renter_stream" ? (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
+          <p className="font-semibold">Delivery confirmed</p>
+          <p className="mt-1 text-xs">
+            Waiting for the renter to start the G$ payment stream from their
+            wallet.
+          </p>
         </div>
       ) : null}
 
@@ -508,7 +517,7 @@ export function RentalCard({
         </div>
       ) : null}
 
-      {isOwner && !chain.depositReleased && chain.hasEscrow && !awaitingStreamStart ? (
+      {isOwner && ownerPhase === "awaiting_return" && chain.hasEscrow ? (
         <div className="space-y-2">
           <p className="text-sm text-muted">
             Item returned? Confirm to release the renter&apos;s security deposit.

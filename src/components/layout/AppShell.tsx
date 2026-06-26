@@ -16,7 +16,7 @@ import { MeshBackground } from "@/components/layout/MeshBackground";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { ConnectButton } from "@/components/wallet/ConnectButton";
 import { useClientRentals } from "@/hooks/useClientRentals";
-import { countRenterActions } from "@/lib/renter-action";
+import { countPendingRentalActions } from "@/lib/renter-action";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { address } = useAccount();
   const { rentals } = useClientRentals(address);
-  const actionCount = countRenterActions(rentals, address);
+  const actionCount = countPendingRentalActions(rentals, address);
 
   return (
     <>
