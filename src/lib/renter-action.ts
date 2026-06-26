@@ -23,6 +23,7 @@ export function needsRenterAction(
     rental.renterAddress.toLowerCase() === wallet.toLowerCase() &&
     Boolean(rental.bookingId) &&
     !rental.flowTxHash &&
+    !rental.streamStartedAt &&
     rental.status !== "completed" &&
     Boolean(rental.ownerHandoverAt)
   );

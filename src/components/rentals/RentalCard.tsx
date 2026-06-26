@@ -166,7 +166,7 @@ export function RentalCard({
     try {
       await startStream();
       await chain.refetch();
-      onUpdated();
+      await onUpdated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start stream";
       if (message.toLowerCase().includes("reject")) {

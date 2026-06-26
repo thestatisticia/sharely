@@ -5,6 +5,7 @@ import {
   saveRental,
   updateRental as updateLocalRental,
 } from "@/lib/store";
+import { mergeRentalsWithLocal } from "@/lib/rental-merge";
 import { useRemoteListings, setListingVisibility } from "@/lib/listings-api";
 
 export function useRemoteRentals(): boolean {
@@ -33,7 +34,9 @@ export async function fetchRentalsForWallet(
       throw new Error("Invalid rentals response");
     }
 
-    return data as Rental[];
+    const remote = data as Rental[];
+    const local = getRentalsForWallet(wallet);
+    return mergeRentalsWithLocal(remote, local);
   }
 
   return getRentalsForWallet(wallet);
@@ -133,8 +136,12 @@ export async function patchRental(
     body: JSON.stringify(patch),
   });
 
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    rental?: Rental;
+  };
+
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
     if (res.status === 404) {
       const rental = getRentals().find((r) => r.id === id);
       if (rental) {
@@ -143,5 +150,17 @@ export async function patchRental(
       }
     }
     throw new Error(body.error ?? "Could not update rental on server");
+  }
+
+  if (body.rental) {
+    updateLocalRental(id, {
+      status: body.rental.status,
+      streamStartedAt: body.rental.streamStartedAt,
+      ownerHandoverAt: body.rental.ownerHandoverAt,
+      flowTxHash: body.rental.flowTxHash,
+      startDate: body.rental.startDate,
+      endDate: body.rental.endDate,
+      txHash: body.rental.txHash,
+    });
   }
 }

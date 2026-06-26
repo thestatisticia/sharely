@@ -4,8 +4,8 @@ import { useState } from "react";
 import { AlertTriangle, Loader2, Package } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { useRentalOnChain } from "@/hooks/useRentalOnChain";
 import { useStartRentalStream } from "@/hooks/useStartRentalStream";
+import { useSyncRentalStreamFromChain } from "@/hooks/useSyncRentalStreamFromChain";
 import { formatG$ } from "@/lib/format";
 import type { Rental } from "@/lib/types";
 
@@ -14,12 +14,20 @@ export function RenterActionRequired({
   onUpdated,
 }: {
   rental: Rental;
-  onUpdated: () => void;
+  onUpdated: () => void | Promise<void>;
 }) {
-  const chain = useRentalOnChain(rental);
+  const chain = useSyncRentalStreamFromChain(rental, () => {
+    void onUpdated();
+  });
   const { startStream } = useStartRentalStream(rental);
   const [busy, setBusy] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const streamLive =
+    completed ||
+    Boolean(rental.flowTxHash || rental.streamStartedAt) ||
+    (chain.onChainFlowActive && Boolean(rental.ownerHandoverAt));
 
   async function handleStartStream() {
     if (!chain.hasEscrow) return;
@@ -27,13 +35,14 @@ export function RenterActionRequired({
     setError(null);
     try {
       await startStream();
+      setCompleted(true);
       await chain.refetch();
-      onUpdated();
+      await onUpdated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not start stream";
       if (message.toLowerCase().includes("reject")) {
         setError(
-          "Cancelled in MetaMask. Step 1 is a free signature; step 2 is the stream transaction (uses CELO for gas).",
+          "Cancelled in MetaMask. Approve the signature, then the stream transaction (CELO gas).",
         );
       } else {
         setError(message);
@@ -43,7 +52,7 @@ export function RenterActionRequired({
     }
   }
 
-  if (chain.streamActive || rental.flowTxHash) return null;
+  if (streamLive) return null;
 
   return (
     <div

@@ -92,7 +92,7 @@ export default function RentalsPage() {
                 <RenterActionRequired
                   key={rental.id}
                   rental={rental}
-                  onUpdated={reload}
+                  onUpdated={() => reload({ silent: true })}
                 />
               ))}
             </section>
@@ -110,7 +110,7 @@ export default function RentalsPage() {
                 <RentalCard
                   key={rental.id}
                   rental={rental}
-                  onUpdated={reload}
+                  onUpdated={() => reload({ silent: true })}
                 />
               ))}
             </section>
@@ -124,7 +124,7 @@ export default function RentalsPage() {
                 <RentalCard
                   key={rental.id}
                   rental={rental}
-                  onUpdated={reload}
+                  onUpdated={() => reload({ silent: true })}
                 />
               ))}
             </section>

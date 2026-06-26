@@ -10,14 +10,16 @@ export function useClientRentals(wallet: `0x${string}` | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (options?: { silent?: boolean }) => {
     if (!wallet) {
       setRentals([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await fetchRentalsForWallet(wallet);
@@ -36,8 +38,8 @@ export function useClientRentals(wallet: `0x${string}` | undefined) {
 
   useEffect(() => {
     const onFocus = () => void reload();
-    window.addEventListener("focus", reload);
-    return () => window.removeEventListener("focus", reload);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [reload]);
 
   return { rentals, loading, error, reload };

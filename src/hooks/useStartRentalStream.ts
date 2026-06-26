@@ -47,20 +47,25 @@ export function useStartRentalStream(rental: Rental) {
       chainId,
     });
 
-    const attestAt = new Date().toISOString();
-    await signMessageAsync({
-      message: buildStreamStartSignMessage(rental, attestAt),
-    });
-
     const flowCall = createFlowArgs(rental, address, flowRate);
     const { request } = await publicClient.simulateContract({
       ...flowCall,
       account: address,
     });
 
+    const attestAt = new Date().toISOString();
+    await signMessageAsync({
+      message: buildStreamStartSignMessage(rental, attestAt),
+    });
+
     const hash = await writeContractAsync(request);
 
-    await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status === "reverted") {
+      throw new Error(
+        "Stream transaction failed on-chain. Make sure you have enough G$ for rental payments (not just the escrow deposit).",
+      );
+    }
 
     const now = new Date();
     const end = new Date(now);

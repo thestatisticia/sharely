@@ -59,9 +59,11 @@ export function useRentalOnChain(rental: Rental) {
   const flowRate = flowInfo?.[1] as bigint | undefined;
   const onChainFlowActive =
     flowRate !== undefined && flowRate > BigInt(0);
-  /** Only count a stream for this rental after pickup was confirmed in-app. */
+  /** Stream counts once recorded in-app or live on-chain after owner handover. */
   const streamStartedForRental = Boolean(
-    rental.flowTxHash || rental.streamStartedAt,
+    rental.flowTxHash ||
+      rental.streamStartedAt ||
+      (onChainFlowActive && rental.ownerHandoverAt),
   );
   const streamActive = onChainFlowActive && streamStartedForRental;
 
