@@ -15,13 +15,11 @@ import {
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { useAutoStopRentalStream } from "@/hooks/useAutoStopRentalStream";
 import { useRentalOnChain } from "@/hooks/useRentalOnChain";
 import { useStartRentalStream } from "@/hooks/useStartRentalStream";
 import {
-  CFA_FORWARDER_ADDRESS,
   ESCROW_ADDRESS,
-  G_DOLLAR_TOKEN_ADDRESS,
-  cfaForwarderAbi,
   escrowAbi,
 } from "@/lib/contracts";
 import { formatG$, shortenAddress } from "@/lib/format";
@@ -76,6 +74,12 @@ export function RentalCard({
   const { signMessageAsync } = useSignMessage();
   const chain = useRentalOnChain(rental);
   const { startStream } = useStartRentalStream(rental);
+  const autoStop = useAutoStopRentalStream(rental, {
+    streamActive: chain.streamActive,
+    flowRate: chain.flowRate,
+    onRefetch: chain.refetch,
+    onUpdated,
+  });
 
   const [action, setAction] = useState<Action>(null);
   const [error, setError] = useState<string | null>(null);
@@ -235,20 +239,9 @@ export function RentalCard({
     setAction("stop");
     setError(null);
     try {
-      const hash = await writeContractAsync({
-        address: CFA_FORWARDER_ADDRESS,
-        abi: cfaForwarderAbi,
-        functionName: "deleteFlow",
-        args: [
-          G_DOLLAR_TOKEN_ADDRESS,
-          rental.renterAddress,
-          rental.ownerAddress,
-          "0x",
-        ],
-      });
-      await waitTx(hash);
-      await chain.refetch();
-      onUpdated();
+      const ok = await autoStop.stopStream();
+      if (!ok) throw new Error("Stop stream failed");
+      setTxHash(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Stop stream failed");
     } finally {
@@ -277,7 +270,7 @@ export function RentalCard({
     }
   }
 
-  const busy = action !== null;
+  const busy = action !== null || autoStop.stopping;
   const statusTone =
     rental.status === "completed" || chain.isComplete
       ? "success"
@@ -508,9 +501,34 @@ export function RentalCard({
         <div className="space-y-2">
           {chain.streamActive && !chain.depositReleased ? (
             <p className="text-sm text-muted">
-              Payments stream to the owner while you use the item. Return it when
-              finished — the owner confirms return to release your deposit.
+              Payments stream to the owner until the full rental total (
+              {formatG$(dailyRate * rental.days)} G$) is reached — then the
+              stream stops automatically. Return the item and ask the owner to
+              confirm return for your deposit.
             </p>
+          ) : null}
+
+          {autoStop.paymentCapReached && chain.streamActive ? (
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-2.5 text-sm text-emerald-900">
+              <p className="font-semibold">Rental payments complete</p>
+              <p className="mt-1 text-xs">
+                {autoStop.stopping
+                  ? "Confirm in MetaMask to stop the stream…"
+                  : "Full rental total reached. Approve the transaction to stop the stream."}
+              </p>
+              {!autoStop.stopping ? (
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  className="mt-3"
+                  size="sm"
+                  onClick={() => void handleStopStream()}
+                  disabled={busy}
+                >
+                  Stop payment stream
+                </Button>
+              ) : null}
+            </div>
           ) : null}
 
           {chain.streamActive && chain.depositReleased ? (

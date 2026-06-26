@@ -38,7 +38,11 @@ export function getRentalProgress(
   const elapsed = Math.min(Math.max(now - startMs, 0), span);
   const progress = elapsed / span;
   const daysElapsed = elapsed / 86_400_000;
-  const earnedG$ = rental.dailyRateG$ * daysElapsed;
+  const earnedG$ = Math.min(
+    rental.dailyRateG$ * daysElapsed,
+    totalRentalG$,
+  );
+  const cappedProgress = Math.min(progress, 1);
 
   if (depositReleased && !streamActive) {
     return {
@@ -54,7 +58,7 @@ export function getRentalProgress(
   if (!streamActive) {
     return {
       phase: "stopped",
-      progress,
+      progress: cappedProgress,
       earnedG$,
       totalRentalG$: totalRentalG$,
       daysElapsed,
@@ -64,7 +68,7 @@ export function getRentalProgress(
 
   return {
     phase: "streaming",
-    progress,
+    progress: cappedProgress,
     earnedG$,
     totalRentalG$: totalRentalG$,
     daysElapsed,

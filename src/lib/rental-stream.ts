@@ -99,3 +99,17 @@ export function createFlowArgs(
     ] as const,
   };
 }
+
+export function deleteFlowArgs(rental: Rental) {
+  return {
+    address: CFA_FORWARDER_ADDRESS,
+    abi: cfaForwarderAbi,
+    functionName: "deleteFlow" as const,
+    args: [
+      G_DOLLAR_TOKEN_ADDRESS,
+      rental.renterAddress,
+      rental.ownerAddress,
+      "0x",
+    ] as const,
+  };
+}
